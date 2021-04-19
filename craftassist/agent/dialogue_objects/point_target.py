@@ -9,14 +9,19 @@ class PointTargetInterpreter:
         # TODO: We might want to specifically check for BETWEEN/INSIDE, I'm not sure
         # what the +1s are in the return value
         mems = interpreter.subinterpret["reference_locations"](interpreter, speaker, d["location"])
-        #    mems = interpret_reference_location(interpreter, speaker, d["location"])
         steps, reldir = interpret_relative_direction(interpreter.agent, d)
-        loc, _ = interpreter.subinterpret["specify_locations"](
-            interpreter, speaker, mems, steps, reldir
-        )
-        #    loc, _ = compute_locations(interpreter, speaker, mems, steps, reldir)
+        # if directly point at a reference object, call built-in fn to get pointed target
+        if steps is None and reldir is None:
+            loc = mems[0].get_point_at_target()
+        else:
+            loc, _ = interpreter.subinterpret["specify_locations"](
+                interpreter, speaker, mems, steps, reldir
+            )
         return self.point_to_region(loc)
 
-    def point_to_region(self, loc):
-        assert len(loc) == 3, "point_to_region expects a triple"
-        return (loc[0], loc[1]+1, loc[2], loc[0], loc[1]+1, loc[2])
+    def point_to_region(self, pointed_target):
+        # mc pointed target is either a point (x, y, z) or a region represented as (xmin, ymin, zmin, xmax, ymax, zmax)
+        assert len(pointed_target) == 6 or len(pointed_target) == 3, "pointed target should either be (x, y, z) or (xmin, ymin, zmin, xmax, ymax, zmax)"
+        if len(pointed_target) == 3:
+            pointed_target = (pointed_target[0], pointed_target[1], pointed_target[2], pointed_target[0], pointed_target[1], pointed_target[2])
+        return pointed_target
