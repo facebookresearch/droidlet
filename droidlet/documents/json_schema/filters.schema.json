@@ -201,9 +201,6 @@
                         }
                     ]
                 },
-                "repeat": {
-                    "$ref": "grammar_spec.schema.json#/definitions/repeat"
-                },
                 "selector": {
                     "$ref": "#/definitions/selector"
                 }

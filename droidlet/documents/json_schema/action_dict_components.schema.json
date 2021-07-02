@@ -174,7 +174,7 @@
     },
     "stop_condition": {
       "type": "object",
-      "description": "Condition for stopping a repeat",
+      "description": "Condition for stopping",
       "properties": {
         "condition_type": {
           "enum": [
@@ -204,28 +204,6 @@
       "required": [
         "filters"
       ]
-    },
-    "repeat": {
-      "type": "object",
-      "properties": {
-        "repeat_key": {
-          "enum": [
-            "ALL"
-          ]
-        },
-        "repeat_dir": {
-          "enum": [
-            "LEFT",
-            "RIGHT",
-            "UP",
-            "DOWN",
-            "FRONT",
-            "BACK",
-            "AROUND",
-            "SURROUND"
-          ]
-        }
-      }
     },
     "facing": {
       "type": "object",

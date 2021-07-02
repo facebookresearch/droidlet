@@ -31,9 +31,6 @@
     "schematic": {
       "$ref": "action_dict_components.schema.json#/definitions/schematic"
     },
-    "repeat": {
-      "$ref": "action_dict_components.schema.json#/definitions/repeat"
-    },
     "facing": {
       "$ref": "action_dict_components.schema.json#/definitions/facing"
     },
@@ -148,9 +145,6 @@
         "reference_object": {
           "$ref": "#/definitions/reference_object"
         },
-        "repeat": {
-          "$ref": "#/definitions/repeat"
-        },
         "replace": {
           "type": "boolean"
         }
@@ -169,9 +163,6 @@
         },
         "reference_object": {
           "$ref": "#/definitions/reference_object"
-        },
-        "repeat": {
-          "$ref": "#/definitions/repeat"
         },
         "replace": {
           "type": "boolean"
@@ -244,9 +235,6 @@
         "stop_condition": {
           "$ref": "#/definitions/stop_condition"
         },
-        "repeat": {
-          "$ref": "#/definitions/repeat"
-        },
         "replace": {
           "$ref": "#/definitions/replace"
         }
@@ -273,9 +261,6 @@
         },
         "stop_condition": {
           "$ref": "#/definitions/stop_condition"
-        },
-        "repeat": {
-          "$ref": "#/definitions/repeat"
         },
         "replace": {
           "$ref": "#/definitions/replace"
@@ -324,9 +309,6 @@
         },
         "reference_object": {
           "$ref": "#/definitions/reference_object"
-        },
-        "repeat": {
-          "$ref": "#/definitions/repeat"
         },
         "receiver": {
           "$ref": "#/definitions/receiver"
