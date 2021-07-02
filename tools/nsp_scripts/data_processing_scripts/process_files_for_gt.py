@@ -40,13 +40,13 @@ if __name__ == "__main__":
         type=str,
         help="File we want to process for use in ground truth annotations.",
         # Assuming run from ~/droidlet
-        default="craftassist/agent/datasets/full_data/templated.txt",
+        default="agents/craftassist/datasets/full_data/templated.txt",
     )
     parser.add_argument(
         "--output_path",
         type=str,
         help="Where to write ground truth annotations to.",
-        default="craftassist/agent/datasets/ground_truth/datasets/templated.txt",
+        default="agents/craftassist/datasets/ground_truth/datasets/templated.txt",
     )
     parser.add_argument(
         "--keep_long_commands",
