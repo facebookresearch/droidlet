@@ -22,8 +22,8 @@
     "location": {
       "$ref": "action_dict_components.schema.json#/definitions/location"
     },
-    "stop_condition": {
-      "$ref": "action_dict_components.schema.json#/definitions/stop_condition"
+    "remove_condition": {
+      "$ref": "action_dict_components.schema.json#/definitions/remove_condition"
     },
     "schematic": {
       "$ref": "action_dict_components.schema.json#/definitions/schematic"
@@ -90,11 +90,8 @@
             "MOVE"
           ]
         },
-        "stop_condition": {
-          "$ref": "#/definitions/stop_condition"
-        },
         "remove_condition": {
-          "$ref": "#/definitions/stop_condition"
+          "$ref": "#/definitions/remove_condition"
         }
       }
     },
@@ -235,8 +232,8 @@
         "schematic": {
           "$ref": "#/definitions/schematic"
         },
-        "stop_condition": {
-          "$ref": "#/definitions/stop_condition"
+        "remove_condition": {
+          "$ref": "#/definitions/remove_condition"
         },
         "repeat": {
           "$ref": "#/definitions/repeat"
@@ -282,11 +279,8 @@
             "DANCE"
           ]
         },
-        "stop_condition": {
-          "$ref": "#/definitions/stop_condition"
-        },
         "remove_condition": {
-          "$ref": "#/definitions/stop_condition"
+          "$ref": "#/definitions/remove_condition"
         },
         "location": {
           "$ref": "#/definitions/location"
