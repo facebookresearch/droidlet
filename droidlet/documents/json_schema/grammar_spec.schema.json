@@ -268,6 +268,12 @@
         "location": {
           "$ref": "#/definitions/location"
         },
+        "remove_condition": {
+          "$ref": "#/definitions/remove_condition"
+        },
+        "stop_condition": {
+          "$ref": "#/definitions/stop_condition"
+        },
         "repeat": {
           "$ref": "#/definitions/repeat"
         },

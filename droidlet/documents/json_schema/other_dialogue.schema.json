@@ -80,6 +80,12 @@
                 "location": {
                     "$ref": "action_dict_components.schema.json#/definitions/location"
                 },
+                "remove_condition": {
+                    "$ref": "action_dict_components.schema.json#/definitions/remove_condition"
+                },
+                "stop_condition": {
+                    "$ref": "action_dict_components.schema.json#/definitions/stop_condition"
+                },
                 "repeat": {
                     "$ref": "grammar_spec.schema.json#/definitions/repeat"
                 }
