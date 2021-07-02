@@ -172,6 +172,25 @@
         }
       }
     },
+    "stop_condition": {
+      "type": "object",
+      "description": "Condition for stopping a repeat",
+      "properties": {
+        "condition_type": {
+          "enum": [
+            "ADJACENT_TO_BLOCK_TYPE",
+            "NEVER",
+            "COMPARATOR"
+          ]
+        },
+        "block_type": {
+          "$ref": "#/definitions/span"
+        },
+        "condition": {
+          "$ref": "#/definitions/condition"
+        }
+      }
+    },
     "schematic": {
       "type": "object",
       "properties": {

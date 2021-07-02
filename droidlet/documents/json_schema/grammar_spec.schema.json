@@ -25,6 +25,9 @@
     "remove_condition": {
       "$ref": "action_dict_components.schema.json#/definitions/remove_condition"
     },
+    "stop_condition": {
+      "$ref": "action_dict_components.schema.json#/definitions/stop_condition"
+    },
     "schematic": {
       "$ref": "action_dict_components.schema.json#/definitions/schematic"
     },
@@ -92,6 +95,9 @@
         },
         "remove_condition": {
           "$ref": "#/definitions/remove_condition"
+        },
+        "stop_condition": {
+          "$ref": "#/definitions/stop_condition"
         }
       }
     },
@@ -235,6 +241,9 @@
         "remove_condition": {
           "$ref": "#/definitions/remove_condition"
         },
+        "stop_condition": {
+          "$ref": "#/definitions/stop_condition"
+        },
         "repeat": {
           "$ref": "#/definitions/repeat"
         },
@@ -281,6 +290,9 @@
         },
         "remove_condition": {
           "$ref": "#/definitions/remove_condition"
+        },
+        "stop_condition": {
+          "$ref": "#/definitions/stop_condition"
         },
         "location": {
           "$ref": "#/definitions/location"
