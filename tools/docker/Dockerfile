@@ -10,6 +10,7 @@ RUN time git clone --recursive --shallow-submodules --depth 1 --branch ${current
 WORKDIR droidlet
 
 RUN pip3 install -r requirements.txt
+RUN pip3 install -r agents/craftassist/requirements.txt
 RUN tools/data_scripts/try_download.sh craftassist
 
 # use the much faster lld linker

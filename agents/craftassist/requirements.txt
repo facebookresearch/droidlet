@@ -1,2 +1,2 @@
--r ../requirements.txt
+-r ../../requirements.txt
 scipy==1.1.0

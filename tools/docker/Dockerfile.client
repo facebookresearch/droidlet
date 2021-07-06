@@ -33,6 +33,7 @@ RUN cd droidlet/lowlevel/minecraft && \
     cd ../../../
 
 RUN pip3 install -r requirements.txt
+RUN pip3 install -r agents/craftassist/requirements.txt
 
 RUN echo "alias python=python3" >> ~/.bashrc
 
