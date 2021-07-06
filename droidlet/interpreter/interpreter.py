@@ -185,7 +185,7 @@ class Interpreter(DialogueObject):
             return task
 
         if "remove_condition" in d:
-            condition = self.subinterpret["condition"](self, speaker, d["stop_condition"])
+            condition = self.subinterpret["condition"](self, speaker, d["remove_condition"])
             location_d = d.get("location", SPEAKERLOOK)
             mems = self.subinterpret["reference_locations"](self, speaker, location_d)
             if mems:
