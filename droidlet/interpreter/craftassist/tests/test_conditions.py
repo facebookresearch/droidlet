@@ -128,8 +128,8 @@ class DigRemoveConditionTest(BaseCraftassistTestCase):
 
     def test_dig_n_times(self):
         s  = deepcopy(STOP_CONDITION_COMMANDS["dig a hole 2 times"])
-        changes = self.handle_logical_form(d)
-        
+        changes = self.handle_logical_form(s)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -210,5 +210,6 @@ CANONICALIZE_ATTRIBUTES = {
     "born_time": "create_time",
     "modify_time": "updated_time",
     "visit_time": "attended_time",  # FIXME!!
+    "RUN_COUNT" : "run_count"
     # "speaker","finished_time", "chat", "logical_form" ... tasks not supported yet
 }
