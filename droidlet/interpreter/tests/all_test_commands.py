@@ -985,6 +985,26 @@ STOP_CONDITION_COMMANDS = {
         ],
         "dialogue_type": "HUMAN_GIVE_COMMAND",
     },
+    "dig a hole 2 times": {
+        "action_sequence" : [
+            {
+                "action_type": "DIG",
+                "remove_condition": {
+                    "condition_type": "COMPARATOR",
+                    "condition": {
+                        "comparison_type": "EQUAL",
+                        "input_left": {
+                            "value_extractor" : {
+                                "filters": {
+                                    "output": {"attribute": "RUN_COUNT"},
+                                    "special": {"fixed_value": "THIS"}}
+                        },
+                        "input_right": {"value_extractor": "2"}
+                    }
+                }}}
+        ],
+        "dialogue_type": "HUMAN_GIVE_COMMAND",
+    },
     "follow the cow for 2 minutes": {
         "action_sequence": [
             {

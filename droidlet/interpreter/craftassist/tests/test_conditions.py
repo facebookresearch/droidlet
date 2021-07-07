@@ -122,6 +122,14 @@ class FollowUntilTest(BaseCraftassistTestCase):
 #            abs(self.agent.pos[0] - cow.pos[0]) + abs(self.agent.pos[2] - cow.pos[2]), 1.01
 #        )
 
+class DigRemoveConditionTest(BaseCraftassistTestCase):
+    def setUp(self):
+        super().setUp()
+
+    def test_dig_n_times(self):
+        s  = deepcopy(STOP_CONDITION_COMMANDS["dig a hole 2 times"])
+        changes = self.handle_logical_form(d)
+        
 
 if __name__ == "__main__":
     unittest.main()
