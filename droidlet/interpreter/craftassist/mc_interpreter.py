@@ -412,15 +412,15 @@ class MCInterpreter(Interpreter):
                 tasks_todo.append(t)
             return maybe_task_list_to_control_block(tasks_todo, agent)
 
-        if "stop_condition" in d:
-            condition = self.subinterpret["condition"](self, speaker, d["stop_condition"])
+        if "remove_condition" in d:
+            condition = self.subinterpret["condition"](self, speaker, d["remove_condition"])
             return (
                 [
                     self.task_objects["control"](
                         agent,
                         data={
                             "new_tasks": new_tasks,
-                            "stop_condition": condition,
+                            "remove_condition": condition,
                             "action_dict": d,
                         },
                     )
@@ -511,15 +511,15 @@ class MCInterpreter(Interpreter):
                     raise ErrorWithResponse("I don't know how to do that movement yet.")
             return maybe_task_list_to_control_block(tasks_to_do, agent)
 
-        if "stop_condition" in d:
-            condition = self.subinterpret["condition"](self, speaker, d["stop_condition"])
+        if "remove_condition" in d:
+            condition = self.subinterpret["condition"](self, speaker, d["remove_condition"])
             return (
                 [
                     self.task_objects["control"](
                         agent,
                         data={
                             "new_tasks_fn": new_tasks,
-                            "stop_condition": condition,
+                            "remove_condition": condition,
                             "action_dict": d,
                         },
                     )
