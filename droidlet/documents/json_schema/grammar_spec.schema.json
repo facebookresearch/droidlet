@@ -22,14 +22,14 @@
     "location": {
       "$ref": "action_dict_components.schema.json#/definitions/location"
     },
+    "remove_condition": {
+      "$ref": "action_dict_components.schema.json#/definitions/remove_condition"
+    },
     "stop_condition": {
       "$ref": "action_dict_components.schema.json#/definitions/stop_condition"
     },
     "schematic": {
       "$ref": "action_dict_components.schema.json#/definitions/schematic"
-    },
-    "repeat": {
-      "$ref": "action_dict_components.schema.json#/definitions/repeat"
     },
     "facing": {
       "$ref": "action_dict_components.schema.json#/definitions/facing"
@@ -90,10 +90,10 @@
             "MOVE"
           ]
         },
-        "stop_condition": {
-          "$ref": "#/definitions/stop_condition"
-        },
         "remove_condition": {
+          "$ref": "#/definitions/remove_condition"
+        },
+        "stop_condition": {
           "$ref": "#/definitions/stop_condition"
         }
       }
@@ -145,9 +145,6 @@
         "reference_object": {
           "$ref": "#/definitions/reference_object"
         },
-        "repeat": {
-          "$ref": "#/definitions/repeat"
-        },
         "replace": {
           "type": "boolean"
         }
@@ -166,9 +163,6 @@
         },
         "reference_object": {
           "$ref": "#/definitions/reference_object"
-        },
-        "repeat": {
-          "$ref": "#/definitions/repeat"
         },
         "replace": {
           "type": "boolean"
@@ -235,11 +229,11 @@
         "schematic": {
           "$ref": "#/definitions/schematic"
         },
+        "remove_condition": {
+          "$ref": "#/definitions/remove_condition"
+        },
         "stop_condition": {
           "$ref": "#/definitions/stop_condition"
-        },
-        "repeat": {
-          "$ref": "#/definitions/repeat"
         },
         "replace": {
           "$ref": "#/definitions/replace"
@@ -262,8 +256,11 @@
         "location": {
           "$ref": "#/definitions/location"
         },
-        "repeat": {
-          "$ref": "#/definitions/repeat"
+        "remove_condition": {
+          "$ref": "#/definitions/remove_condition"
+        },
+        "stop_condition": {
+          "$ref": "#/definitions/stop_condition"
         },
         "replace": {
           "$ref": "#/definitions/replace"
@@ -282,10 +279,10 @@
             "DANCE"
           ]
         },
-        "stop_condition": {
-          "$ref": "#/definitions/stop_condition"
-        },
         "remove_condition": {
+          "$ref": "#/definitions/remove_condition"
+        },
+        "stop_condition": {
           "$ref": "#/definitions/stop_condition"
         },
         "location": {
@@ -312,9 +309,6 @@
         },
         "reference_object": {
           "$ref": "#/definitions/reference_object"
-        },
-        "repeat": {
-          "$ref": "#/definitions/repeat"
         },
         "receiver": {
           "$ref": "#/definitions/receiver"

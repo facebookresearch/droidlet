@@ -22,7 +22,7 @@ else
 	AGENT=$1
 fi
 
-AGENT_PATH="${ROOTDIR}/${AGENT}/agent/"
+AGENT_PATH="${ROOTDIR}/agents/${AGENT}/"
 echo "$AGENT_PATH"
 
 DIRNAME="datasets"

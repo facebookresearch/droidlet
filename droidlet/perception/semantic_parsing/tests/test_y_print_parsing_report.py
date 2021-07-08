@@ -269,7 +269,7 @@ common_functional_commands = {
         "dialogue_type": "HUMAN_GIVE_COMMAND",
         "action_sequence": [
             {
-                "stop_condition": {"condition_type": "NEVER"},
+                "remove_condition": {"condition_type": "NEVER"},
                 "location": {
                     "reference_object": {"special_reference": {"fixed_value": "SPEAKER"}}
                 },
@@ -450,7 +450,7 @@ common_functional_commands = {
         "dialogue_type": "HUMAN_GIVE_COMMAND",
         "action_sequence": [
             {
-                "stop_condition": {"condition_type": "NEVER"},
+                "remove_condition": {"condition_type": "NEVER"},
                 "location": {
                     "reference_object": {
                         "filters": {
@@ -983,7 +983,7 @@ GROUND_TRUTH_PARSES = {
                         "filters": {"triples": [{"pred_text": "has_name", "obj_text": "chair"}]}
                     }
                 },
-                "stop_condition": {"condition_type": "NEVER"},
+                "remove_condition": {"condition_type": "NEVER"},
             }
         ],
         "dialogue_type": "HUMAN_GIVE_COMMAND",

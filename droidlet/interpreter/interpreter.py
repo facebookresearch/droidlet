@@ -63,7 +63,7 @@ class Interpreter(DialogueObject):
             # FIXME, just make a class
             "reference_objects": ReferenceObjectInterpreter(interpret_reference_object),
             "reference_locations": ReferenceLocationInterpreter(),
-            # make sure to do this in subclass
+            # make sure to do this in sfubclass
             # "attribute": MCAttributeInterpreter(),
             # "condition": ConditionInterpreter(),
             # "specify_locations": ComputeLocations(),
@@ -184,8 +184,8 @@ class Interpreter(DialogueObject):
             task = Move(agent, task_data)
             return task
 
-        if "stop_condition" in d:
-            condition = self.subinterpret["condition"](self, speaker, d["stop_condition"])
+        if "remove_condition" in d:
+            condition = self.subinterpret["condition"](self, speaker, d["remove_condition"])
             location_d = d.get("location", SPEAKERLOOK)
             mems = self.subinterpret["reference_locations"](self, speaker, location_d)
             if mems:

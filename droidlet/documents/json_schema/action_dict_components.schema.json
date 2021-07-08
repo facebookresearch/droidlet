@@ -132,20 +132,6 @@
         }
       }
     },
-    "remove_condition": {
-      "type": "object",
-      "description": "Condition for removing an event",
-      "properties": {
-        "condition_type": {
-          "enum": [
-            "COMPARATOR"
-          ]
-        },
-        "condition": {
-          "$ref": "#/definitions/condition"
-        }
-      }
-    },
     "special_reference": {
       "oneOf": [
         {
@@ -167,18 +153,41 @@
         }
       ]
     },
-    "stop_condition": {
+    "remove_condition": {
       "type": "object",
-      "description": "Condition for stopping a repeat",
+      "description": "Condition for removing an event",
       "properties": {
         "condition_type": {
           "enum": [
             "ADJACENT_TO_BLOCK_TYPE",
-            "NEVER"
+            "NEVER",
+            "COMPARATOR"
           ]
         },
         "block_type": {
           "$ref": "#/definitions/span"
+        },
+        "condition": {
+          "$ref": "#/definitions/condition"
+        }
+      }
+    },
+    "stop_condition": {
+      "type": "object",
+      "description": "Condition for stopping",
+      "properties": {
+        "condition_type": {
+          "enum": [
+            "ADJACENT_TO_BLOCK_TYPE",
+            "NEVER",
+            "COMPARATOR"
+          ]
+        },
+        "block_type": {
+          "$ref": "#/definitions/span"
+        },
+        "condition": {
+          "$ref": "#/definitions/condition"
         }
       }
     },
@@ -195,28 +204,6 @@
       "required": [
         "filters"
       ]
-    },
-    "repeat": {
-      "type": "object",
-      "properties": {
-        "repeat_key": {
-          "enum": [
-            "ALL"
-          ]
-        },
-        "repeat_dir": {
-          "enum": [
-            "LEFT",
-            "RIGHT",
-            "UP",
-            "DOWN",
-            "FRONT",
-            "BACK",
-            "AROUND",
-            "SURROUND"
-          ]
-        }
-      }
     },
     "facing": {
       "type": "object",

@@ -169,15 +169,15 @@ class LocoInterpreter(Interpreter):
                     raise ErrorWithResponse("I don't know how to do that dance yet!")
             return maybe_task_list_to_control_block(tasks_to_do, agent)
 
-        if "stop_condition" in d:
-            condition = self.subinterpret["condition"](self, speaker, d["stop_condition"])
+        if "remove_condition" in d:
+            condition = self.subinterpret["condition"](self, speaker, d["remove_condition"])
             return (
                 [
                     self.task_objects["control"](
                         agent,
                         data={
                             "new_tasks_fn": TaskListWrapper(new_tasks),
-                            "stop_condition": condition,
+                            "remove_condition": condition,
                             "action_dict": d,
                         },
                     )
