@@ -34,14 +34,17 @@ class DialogueManager(object):
 
     """
 
-    def __init__(self, memory, dialogue_object_classes, dialogue_object_mapper, swarm_workers_names, opts):
+    def __init__(self, memory, dialogue_object_classes, dialogue_object_mapper, opts):
         self.memory = memory
         # FIXME in stage III; need a sensible interface for this
         self.dialogue_stack = memory.dialogue_stack
         self.dialogue_object_mapper = dialogue_object_mapper(
             dialogue_object_classes=dialogue_object_classes, opts=opts, dialogue_manager=self
         )
-        self.swarm_workers_names = swarm_workers_names
+
+    def neglect(self, name):
+        if "bot" in name:
+            return True
 
     def get_last_m_chats(self, m=1):
         # fetch last m chats from memory
@@ -50,7 +53,7 @@ class DialogueManager(object):
         for chat in all_chats:
             # does not need to interpret its own swarm chats
             speaker = self.memory.get_player_by_id(chat.speaker_id).name
-            if speaker in self.swarm_workers_names:
+            if self.neglect(speaker):
                 continue
             chat_memid = chat.memid
             # get logical form if any else None

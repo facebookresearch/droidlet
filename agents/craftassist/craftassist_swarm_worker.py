@@ -8,7 +8,7 @@ import signal
 import random
 import sentry_sdk
 import time
-from multiprocessing import set_start_method
+from multiprocessing import set_start_method, Process, Queue
 from collections import namedtuple
 import subprocess
 
@@ -43,7 +43,8 @@ from droidlet.perception.craftassist.voxel_models.subcomponent_classifier import
     SubcomponentClassifierWrapper,
 )
 from droidlet.lowlevel.minecraft import craftassist_specs
-
+from droidlet.interpreter.craftassist import tasks, dance
+from droidlet.interpreter.task import ControlBlock, maybe_task_list_to_control_block
 faulthandler.register(signal.SIGUSR1)
 
 random.seed(0)
@@ -58,6 +59,21 @@ DEFAULT_FRAME = "SPEAKER"
 Player = namedtuple("Player", "entityId, name, pos, look, mainHand")
 Item = namedtuple("Item", "id, meta")
 
+TASK_MAP = {
+        "move": tasks.Move,
+        "undo": tasks.Undo,
+        "build": tasks.Build,
+        "destroy": tasks.Destroy,
+        "spawn": tasks.Spawn,
+        "fill": tasks.Fill,
+        "dig": tasks.Dig,
+        "dance": tasks.Dance,
+        "point": tasks.Point,
+        "dancemove": tasks.DanceMove,
+        "get": tasks.Get,
+        "drop": tasks.Drop,
+        "control": ControlBlock,
+    }
 
 class CraftAssist_SwarmWorker(LocoMCAgent):
     default_frame = DEFAULT_FRAME
@@ -89,6 +105,11 @@ class CraftAssist_SwarmWorker(LocoMCAgent):
             (0.005, default_behaviors.come_to_player),
         ]
     
+    def step(self):
+        self.perceive()
+        self.task_step()
+        self.count += 1
+
     def get_all_players(self):
         """This function is a wrapper around self.cagent.get_other_players and adds a new
         player called "dashboard" if it doesn't already exist."""
@@ -319,6 +340,32 @@ class CraftAssist_SwarmWorker(LocoMCAgent):
             return
         PlayerNode.create(self.memory, p, memid=self.memory.self_memid)
 
+class CraftAssist_SwarmWorker_Wrapper(Process):
+    def __init__(self, opts, idx=0):
+        super().__init__()
+        self.opts = opts
+        self.idx = idx
+        self.input_tasks = Queue()
+        self.input_chats = Queue()
+    
+    def run(self):
+        agent = CraftAssist_SwarmWorker(self.opts, self.idx)
+        while True:
+            agent.step()
+            try:
+                task_class_name, task_data = self.input_tasks.get_nowait()
+                # TODO: implement stop and resume
+                TASK_MAP[task_class_name](agent, task_data)
+            except:
+                logging.debug("No new task for swarm worker")
+                pass
+            
+            try:
+                chat = self.input_chats.get_nowait()
+                agent.send_chat(chat)
+            except:
+                pass
+        
 
 if __name__ == "__main__":
     base_path = os.path.dirname(__file__)

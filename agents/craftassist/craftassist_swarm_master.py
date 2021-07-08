@@ -16,7 +16,7 @@ import subprocess
 
 # `from craftassist.agent` instead of `from .` because this file is
 # also used as a standalone script and invoked via `python craftassist_agent.py`
-from agents.craftassist.craftassist_swarm_worker import CraftAssist_SwarmWorker
+from agents.craftassist.craftassist_swarm_worker import CraftAssist_SwarmWorker, CraftAssist_SwarmWorker_Wrapper
 from droidlet.interpreter.craftassist import default_behaviors, inventory, dance
 from droidlet.memory.craftassist import mc_memory
 from droidlet.perception.craftassist import rotation, heuristic_perception
@@ -46,7 +46,8 @@ from droidlet.perception.craftassist.voxel_models.subcomponent_classifier import
 )
 from droidlet.lowlevel.minecraft import craftassist_specs
 from droidlet.interpreter.craftassist import swarm_tasks
-
+from multiprocessing import Queue
+from craftassist_swarm_worker import TASK_MAP
 import pdb
 
 faulthandler.register(signal.SIGUSR1)
@@ -83,7 +84,7 @@ class CraftAssist_SwarmMaster(LocoMCAgent):
         except:
             logging.info("Default swarm with {} agents.".format(self.default_num_agents))
             self.num_agents = self.default_num_agents
-        self.swarm_workers = [CraftAssist_SwarmWorker(opts, idx=i) for i in range(self.num_agents)]
+        self.swarm_workers = [CraftAssist_SwarmWorker_Wrapper(opts, idx=i) for i in range(self.num_agents - 1)]
 
         super(CraftAssist_SwarmMaster, self).__init__(opts)
         self.no_default_behavior = opts.no_default_behavior
@@ -102,6 +103,14 @@ class CraftAssist_SwarmMaster(LocoMCAgent):
             (0.005, default_behaviors.come_to_player),
         ]
         self.perceive_on_chat = True
+
+        self.swarm_task_queue = [Queue() for i in range(self.num_agents - 1)]
+
+    def assign_task_to_worker(self, i, task_name, task_data):
+        if i == 0:
+            TASK_MAP[task_name](self, task_data)
+        else:
+            self.swarm_workers[i-1].input_tasks.put((task_name, task_data))
 
     def get_chats(self):
         """This function is a wrapper around self.cagent.get_incoming_chats and adds a new
@@ -193,15 +202,26 @@ class CraftAssist_SwarmMaster(LocoMCAgent):
             memory=self.memory,
             dialogue_object_classes=dialogue_object_classes,
             dialogue_object_mapper=DialogueObjectMapper,
-            swarm_workers_names=self.names,
+            # swarm_workers_names=self.names,
             opts=self.opts,
         )
 
-    def task_step(self, sleep_time=0.25):
-        super().task_step(sleep_time)
-        for worker in self.swarm_workers:
-            worker.task_step(sleep_time)
+    # def task_step(self, sleep_time=0.25):
+    #     super().task_step(sleep_time)
+    #     # for worker in self.swarm_workers:
+    #     #     worker.task_step(sleep_time)
 
+    def start(self):
+        # count forever unless the shutdown signal is given
+        for swarm_worker in self.swarm_workers:
+            swarm_worker.start()
+        
+        while not self._shutdown:
+            try:
+                self.step()
+            except Exception as e:
+                self.handle_exception(e)
+        
     def perceive(self, force=False):
         """Whenever some blocks are changed, that area will be put into a 
         buffer which will be force-perceived by the agent in the next step
@@ -213,8 +233,8 @@ class CraftAssist_SwarmMaster(LocoMCAgent):
         self.areas_to_perceive = cluster_areas(self.areas_to_perceive)
         super().perceive()
         self.areas_to_perceive = []
-        for worker in self.swarm_workers:
-            worker.perceive()
+        # for worker in self.swarm_workers:
+        #     worker.perceive()
 
 
     def get_time(self):
@@ -291,9 +311,12 @@ class CraftAssist_SwarmMaster(LocoMCAgent):
         agent_idx = self.get_agent_idx(agent_idx, agent_name)
         if agent_idx is None:
             return
-        # TODO: check if it is valid
-        self.memory.add_chat(self.memory.self_memid, chat)
-        return self.swarm_workers[agent_idx].send_chat(chat)
+        elif agent_idx == 0:
+            logging.info("{} Sending chat: {}".format(self.name, chat))
+            self.memory.add_chat(self.memory.self_memid, chat)
+            return self.cagent.send_chat(chat)
+        else:
+            self.swarm_workers[agent_idx-1].input_chat.put(chat)
 
     # TODO update client so we can just loop through these
     # TODO rename things a bit- some perceptual things are here,
@@ -307,15 +330,13 @@ class CraftAssist_SwarmMaster(LocoMCAgent):
         logging.info("Attempting to connect to port {}".format(self.opts.port))
         
         # create a swarm of agents
-        self.names = []
-        self.cagents = []
-        for i in range(self.num_agents):
+        self.names = [self.name]
+        for i in range(self.num_agents - 1):
             self.names.append(self.swarm_workers[i].name)
-            # self.cagents.append(MCAgent("localhost", self.opts.port, self.names[i]))
-            self.cagents.append(self.swarm_workers[i].cagent)
 
         # agent 0 is the master agent, the others are worker/sub agents
-        self.cagent = self.cagents[0]
+        # self.cagent = self.swarm_workers[0].agent.cagent
+        self.cagent = MCAgent("localhost", self.opts.port, self.name)
 
         self.dig = self.cagent.dig
         self.drop_item_stack_in_hand = self.cagent.drop_item_stack_in_hand
