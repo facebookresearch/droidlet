@@ -1,6 +1,7 @@
 """
 Copyright (c) Facebook, Inc. and its affiliates.
 """
+# FIXME!! torch this whole file, replace with filters
 from .memory_filters import MemorySearcher
 from droidlet.base_util import TICKS_PER_SEC, TICKS_PER_MINUTE, TICKS_PER_HOUR
 
@@ -79,28 +80,7 @@ class TimeValue(ComparisonValue):
         return self.get_time() - self.offset
 
 
-# TODO unit conversions?
-class MemoryColumnValue(ComparisonValue):
-    def __init__(self, memory, attribute, query=None, mem=None):
-        super().__init__(memory)
-        assert mem or query
-        self.mem = mem
-        if not self.mem:
-            # FIXME!!!! put FILTERS here
-            self.searcher = MemorySearcher(query=query)
-        self.attribute = attribute
-
-    def get_value(self):
-        if self.mem:
-            return self.attribute([self.mem])[0]
-        _, mems = self.searcher.search(self.memory)
-        if len(mems) > 0:
-            # TODO/FIXME! deal with more than 1 better
-            return self.attribute(mems)[0]
-        else:
-            return
-
-
+# FIXME!!: just use FilterValue
 class LinearExtentValue(ComparisonValue):
     # this is a linear extent with both source and destination filled.
     # e.g. "when you are as far from the house as the cow is from the house"
@@ -128,6 +108,7 @@ class LinearExtentValue(ComparisonValue):
             return
 
 
+# TODO unit conversions?
 # TODO/FIXME! check that the memory_filter outputs a single memid/value pair
 class FilterValue(ComparisonValue):
     def __init__(self, memory, memory_filter):
@@ -135,5 +116,5 @@ class FilterValue(ComparisonValue):
         self.memory_filter = memory_filter
 
     def get_value(self):
-        _, vals = self.memory_filter.search()
+        _, vals = self.memory_filter()
         return vals[0]

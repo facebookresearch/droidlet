@@ -21,7 +21,9 @@ class BaseCraftassistTestCase(unittest.TestCase):
         if not players:
             players = [
                 FakePlayer(
-                    Player(42, "SPEAKER", Pos(5, 63, 5), Look(270, 0), Item(0, 0)), active=False, opts=agent_opts
+                    Player(42, "SPEAKER", Pos(5, 63, 5), Look(270, 0), Item(0, 0)),
+                    active=False,
+                    opts=agent_opts,
                 )
             ]
         spec = {
@@ -82,6 +84,8 @@ class BaseCraftassistTestCase(unittest.TestCase):
         world_after = self.world.blocks_to_dict()
         changes = dict(set(world_after.items()) - set(world_before.items()))
         changes.update({k: (0, 0) for k in set(world_before.keys()) - set(world_after.keys())})
+        if i == max_steps - 1:
+            print("warning in {} : agent ran till max_steps".format(self))
         return changes
 
     def agent_should_stop(self, stop_on_chat=False):

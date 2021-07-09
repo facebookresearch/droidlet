@@ -4,7 +4,7 @@ Copyright (c) Facebook, Inc. and its affiliates.
 from ..shared_data_structs import ErrorWithResponse
 from .attribute_helper import AttributeInterpreter, maybe_specific_mem, interpret_span_value
 from droidlet.interpreter.condition import Comparator
-from droidlet.memory.memory_values import MemoryColumnValue
+from droidlet.memory.memory_values import FilterValue
 from droidlet.memory.memory_attributes import ComparatorAttribute
 
 # TODO distance between
@@ -31,23 +31,8 @@ def interpret_comparator(interpreter, speaker, d, is_condition=True):
                 v = interpret_span_value(interpreter, speaker, inp, comparison_measure=cm)
                 value_extractors[inp_pos] = v
         elif inp.get("filters"):
-            # this is a filter
-            # TODO FIXME! deal with count
-            # TODO logical form etc.?
-            # FIXME handle errors/None return in AttributeInterpeter
-            inp_filt = inp["filters"]
-            if inp_filt["output"].get("attribute"):
-                attribute = get_attribute(interpreter, speaker, inp_filt["output"]["attribute"])
-            else:
-                raise Exception(
-                    "filters comparator with no attribute specified {}".format(inp_filt)
-                )
-            mem, query = maybe_specific_mem(interpreter, speaker, inp)
-            # TODO wrap this in a ScaledValue using condtition.convert_comparison_value
-            # and "comparison_measure"
-            value_extractors[inp_pos] = MemoryColumnValue(
-                interpreter.memory, attribute, query=query, mem=mem
-            )
+            F = interpreter.subinterpret["filters"](interpreter, speaker, inp["filters"])
+            value_extractors[inp_pos] = FilterValue(interpreter.memory, F)
         else:
             raise ErrorWithResponse(
                 "I don't know understand that condition, looks like a comparator but value is not filters or span"

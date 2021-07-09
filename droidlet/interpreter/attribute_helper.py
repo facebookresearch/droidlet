@@ -81,7 +81,7 @@ def maybe_specific_mem(interpreter, speaker, ref_obj_d):
     else:
         # this object is only defined by the filters and might be different at different moments
         # FIXME use FILTERS!!
-        # FIXME backoff
+        # should interpret as normal filter at this point...
         tags = tags_from_dict(filters_d)
         if tags:
             where = " AND ".join(["(has_tag={})".format(tag) for tag in tags])
@@ -210,6 +210,6 @@ CANONICALIZE_ATTRIBUTES = {
     "born_time": "create_time",
     "modify_time": "updated_time",
     "visit_time": "attended_time",  # FIXME!!
-    "RUN_COUNT" : "run_count"
+    "RUN_COUNT": "run_count"
     # "speaker","finished_time", "chat", "logical_form" ... tasks not supported yet
 }
