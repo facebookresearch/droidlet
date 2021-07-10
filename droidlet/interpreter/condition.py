@@ -44,18 +44,6 @@ class AlwaysCondition(Condition):
         return True
 
 
-class NTimesCondition(Condition):
-    def __init__(self, memory, N=1):
-        super().__init__(memory)
-        self.N = N
-        self.count = 0
-        self.name = str(self.N) + "times"
-
-    def check(self):
-        self.count += 1
-        return self.count <= self.N
-
-
 class NotCondition(Condition):
     def __init__(self, memory, condition):
         super().__init__(memory)

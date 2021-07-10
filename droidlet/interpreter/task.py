@@ -19,6 +19,17 @@ from droidlet.memory.memory_nodes import TaskNode, LocationNode, TripleNode
 # from droidlet.shared_data_structs import Task
 
 
+def maybe_update_condition_memid(condition, memid, pos="value_left"):
+    if hasattr(condition, pos):
+        v = getattr(condition, pos)
+        if hasattr(v, "memory_filter"):
+            if hasattr(v.memory_filter.head, "memid"):
+                if v.memory_filter.head.memid == "NULL":
+                    # this was a special "THIS" filter condition, needed to wait till here
+                    # to get memid
+                    v.memory_filter.head.memid = memid
+
+
 class Task(object):
     """This class represents a Task, the exact implementation of which
     will depend on the framework and environment. A task can be placed on a
@@ -118,6 +129,10 @@ class Task(object):
         remove_condition = task_data.get(
             "remove_condition", TaskStatusCondition(agent.memory, self.memid)
         )
+        # check/maybe update if special "THIS" filter condition
+        # FIXME do this for init, run, etc.
+        maybe_update_condition_memid(remove_condition, self.memid)
+
         return init_condition, stop_condition, run_condition, remove_condition
 
     # FIXME remove all this its dead now...

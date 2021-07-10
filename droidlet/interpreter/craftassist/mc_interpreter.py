@@ -221,11 +221,13 @@ class MCInterpreter(Interpreter):
                 [list(obj.blocks.items()), obj.memid, tags] for (obj, tags) in zip(objs, tagss)
             ]
         else:  # a schematic
-            interprets = interpret_schematic(self,
-                                             speaker,
-                                             d.get("schematic", {}),
-                                             self.block_data,
-                                             self.special_shape_functions)
+            interprets = interpret_schematic(
+                self,
+                speaker,
+                d.get("schematic", {}),
+                self.block_data,
+                self.special_shape_functions,
+            )
 
         # Get the locations to build
         location_d = d.get("location", SPEAKERLOOK)
@@ -371,15 +373,17 @@ class MCInterpreter(Interpreter):
 
         def new_tasks():
             attrs = {}
-            schematic_triples = d.get("schematic", {}).get("filters", {}).get("triples",
-                                                                              [{'pred_text': 'has_size',
-                                                                                'obj_text': '2'}])
+            schematic_triples = (
+                d.get("schematic", {})
+                .get("filters", {})
+                .get("triples", [{"pred_text": "has_size", "obj_text": "2"}])
+            )
             # schematic_d = d.get("schematic", {"has_size": 2})
             # set the attributes of the hole to be dug.
             schematic_d = {}
             for triple in schematic_triples:
-                schematic_d[triple['pred_text']] = triple['obj_text']
-                
+                schematic_d[triple["pred_text"]] = triple["obj_text"]
+
             for dim, default in [("depth", 1), ("length", 1), ("width", 1)]:
                 key = "has_{}".format(dim)
                 if key in schematic_d:
@@ -414,20 +418,8 @@ class MCInterpreter(Interpreter):
 
         if "remove_condition" in d:
             condition = self.subinterpret["condition"](self, speaker, d["remove_condition"])
-            return (
-                [
-                    self.task_objects["control"](
-                        agent,
-                        data={
-                            "new_tasks": new_tasks,
-                            "remove_condition": condition,
-                            "action_dict": d,
-                        },
-                    )
-                ],
-                None,
-                None,
-            )
+            task_data = {"new_tasks": new_tasks, "remove_condition": condition, "action_dict": d}
+            return self.task_objects["control"](agent, task_data), None, None
         else:
             return new_tasks(), None, None
 
@@ -449,7 +441,7 @@ class MCInterpreter(Interpreter):
             if location_d is not None:
                 rd = location_d.get("relative_direction")
                 if rd is not None and (
-                        rd == "AROUND" or rd == "CLOCKWISE" or rd == "ANTICLOCKWISE"
+                    rd == "AROUND" or rd == "CLOCKWISE" or rd == "ANTICLOCKWISE"
                 ):
                     ref_obj = None
                     location_reference_object = location_d.get("reference_object")
@@ -513,20 +505,8 @@ class MCInterpreter(Interpreter):
 
         if "remove_condition" in d:
             condition = self.subinterpret["condition"](self, speaker, d["remove_condition"])
-            return (
-                [
-                    self.task_objects["control"](
-                        agent,
-                        data={
-                            "new_tasks_fn": new_tasks,
-                            "remove_condition": condition,
-                            "action_dict": d,
-                        },
-                    )
-                ],
-                None,
-                None,
-            )
+            task_data = {"new_tasks": new_tasks, "remove_condition": condition, "action_dict": d}
+            return self.task_objects["control"](agent, task_data), None, None
         else:
             return new_tasks(), None, None
 

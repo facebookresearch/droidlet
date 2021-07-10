@@ -642,10 +642,16 @@ class FixedMemFilter(MemoryFilter):
         super().__init__(agent_memory)
         self.memid = memid
 
+    def check_null(self):
+        if self.memid == "NULL":
+            raise Exception("Tried to run a FixedMemFilter with a NULL fixed memid")
+
     def search(self):
+        self.check_null()
         return [self.memid], [None]
 
     def filter(self, memids, vals):
+        self.check_null()
         try:
             i = memids.index(self.memid)
             return [memids[i]], vals[i]
@@ -692,7 +698,7 @@ class BasicFilter(MemoryFilter):
 
     def _selfstr(self):
         return "Basic: (" + str(self.query) + ")"
-    
+
 
 class BackoffFilter(MemoryFilter):
     """
@@ -725,5 +731,3 @@ class BackoffFilter(MemoryFilter):
 
     def _selfstr(self):
         return "Backoff (" + str([f for f in self.filters]) + ")"
-
-

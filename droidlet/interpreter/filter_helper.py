@@ -53,10 +53,16 @@ def maybe_append_left(F, to_append=None):
 
 def maybe_handle_specific_mem(interpreter, speaker, filters_d, val_map):
     # is this a specific memory?
-    # ... then return
-    mem, _ = maybe_specific_mem(interpreter, speaker, {"filters": filters_d})
-    if mem:
-        return maybe_append_left(FixedMemFilter(interpreter.memory, mem.memid), to_append=val_map)
+    # ... then return it
+    F = None
+    if filters_d.get("special") and filters_d["special"] == "THIS":
+        F = FixedMemFilter(interpreter.memory, "NULL")
+    else:
+        mem, _ = maybe_specific_mem(interpreter, speaker, {"filters": filters_d})
+        if mem:
+            F = FixedMemFilter(interpreter.memory, mem.memid)
+    if F is not None:
+        return maybe_append_left(F, to_append=val_map)
     else:
         return None
 

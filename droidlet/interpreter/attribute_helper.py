@@ -185,6 +185,7 @@ class AttributeInterpreter:
                 return BBoxSize(interpreter.memory, d_attribute.lower())
             d_attribute = CANONICALIZE_ATTRIBUTES.get(d_attribute.lower())
             if d_attribute and type(d_attribute) is str:
+                # FIXME!!! merge/backoff to things like get_property_value
                 return TableColumn(interpreter.memory, d_attribute, get_all=get_all)
             elif d_attribute and type(d_attribute) is list:
                 alist = [self.__call__(interpreter, speaker, a) for a in d_attribute]
@@ -210,6 +211,6 @@ CANONICALIZE_ATTRIBUTES = {
     "born_time": "create_time",
     "modify_time": "updated_time",
     "visit_time": "attended_time",  # FIXME!!
-    "RUN_COUNT": "run_count"
+    "run_count": "run_count"
     # "speaker","finished_time", "chat", "logical_form" ... tasks not supported yet
 }
