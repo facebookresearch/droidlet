@@ -12,6 +12,8 @@ from copy import deepcopy as copy
 import time
 from math import ceil, floor
 import sys
+import json
+from pyrobot.locobot.base_control_utils import LocalActionStatus
 
 cv2 = try_cv2_import()
 
@@ -34,13 +36,13 @@ class Slam(object):
         agent_min_z=5,
         agent_max_z=70,
         vis=False,
-        save_vis=False,
-        save_folder="../slam_logs",
+        save_vis=os.getenv("SAVE_VIS", 'False').lower() in ('true', 'True'),
+        save_folder=os.getenv("SLAM_SAVE_FOLDER", '../slam_logs'),
     ):
         """
 
         :param robot: pyrobot robot object, only supports [habitat, locobot]
-        :param robot_name: name of the robot [habitat, locobot]
+        :param robot_name: name of the robot [habitat, locobot] 
         :param map_size: size of map to be build in cm, assumes square map
         :param resolution: resolution of map, 1 pix = resolution distance(in cm) in real world
         :param robot_rad: radius of the agent, used to explode the map
@@ -79,7 +81,11 @@ class Slam(object):
         self.prev_bot_state = (0, 0, 0)
         self.col_map = np.zeros((self.map_builder.map.shape[0], self.map_builder.map.shape[1]))
         self.robot_loc_list_map = np.array(
-            [self.real2map(self.get_rel_state(self.get_robot_global_state(), self.init_state)[:2])]
+            [
+                self.real2map(
+                    self.get_rel_state(self.get_robot_global_state(), self.init_state)[:2]
+                )
+            ]
         )
         self.map_builder.update_map(
             self.robot.camera.get_current_pcd(in_cam=False)[0],
@@ -90,16 +96,33 @@ class Slam(object):
         self.vis = vis
         self.save_vis = save_vis
         self.save_folder = save_folder
+        print(f"save_vis {save_vis}, save_folder {save_folder}")
         # to visualize robot heading
         triangle_scale = 0.5
         self.triangle_vertex = np.array([[0.0, 0.0], [-2.0, 1.0], [-2.0, -1.0]])
         self.triangle_vertex *= triangle_scale
         if self.save_vis:
-            self.save_folder = os.path.join(save_folder, str(int(time.time())))
+            self.save_folder = save_folder
+            self.img_folder = os.path.join(self.save_folder, "rgb")
+            self.depth_folder = os.path.join(self.save_folder, "depth")
+            self.seg_folder = os.path.join(self.save_folder, "seg")
             if not os.path.isdir(self.save_folder):
                 os.makedirs(self.save_folder)
+
+            if not os.path.isdir(self.img_folder):
+                os.makedirs(self.img_folder)
+
+            if not os.path.isdir(self.depth_folder):
+                os.makedirs(self.depth_folder)
+
+            if not os.path.isdir(self.seg_folder):
+                os.makedirs(self.seg_folder)
+        
+        self.last_pos = self.robot.base.get_state()
+
         self.start_vis = False
         self.vis_count = 0
+        self.skp =0
 
         # for bumper check of locobot
         if self.robot_name == "locobot":
@@ -110,6 +133,11 @@ class Slam(object):
             self.bumper_num2ang = {0: np.deg2rad(30), 1: 0, 2: np.deg2rad(-30)}
 
         self.whole_area_explored = False
+
+        # for storing data
+        self.img_count = 0
+        self.pos_dic = {}
+        self.exec_wait = not (self.save_vis)
 
     def set_goal(self, goal):
         """
@@ -165,23 +193,36 @@ class Slam(object):
         while self.take_step(25) is None:
             continue
 
+    def update_map(self):
+        """Updtes map , explode it by the radius of robot, add collison map to it and return the traversible area
+
+        Returns:
+            [np.ndarray]: [traversible space]
+        """
+        robot_state = self.get_rel_state(self.get_robot_global_state(), self.init_state)
+        self.map_builder.update_map(
+            self.robot.camera.get_current_pcd(in_cam=False)[0], robot_state
+        )
+
+        # explode the map by robot shape
+        obstacle = self.map_builder.map[:, :, 1] >= 1.0
+        selem = disk(self.robot_rad / self.map_builder.resolution)
+        traversable = binary_dilation(obstacle, selem) != True
+
+        # add robot collision map to traversable area
+        unknown_region = self.map_builder.map.sum(axis=-1) < 1
+        col_map_unknown = np.logical_and(self.col_map > 0.1, unknown_region)
+        traversable = np.logical_and(traversable, np.logical_not(col_map_unknown))
+        return traversable
+
     def take_step(self, step_size):
         """
         step size in meter
         :param step_size:
         :return:
         """
-        # explode the map by robot shape
-        obstacle = self.map_builder.map[:, :, 1] >= 1.0
-        selem = disk(self.robot_rad / self.map_builder.resolution)
-        traversable = binary_dilation(obstacle, selem) != True
-
-        """
-        # add robot collision map to traversable area
-        unknown_region = self.map_builder.map.sum(axis=-1) < 1
-        col_map_unknown = np.logical_and(self.col_map > 0.1, unknown_region)
-        traversable = np.logical_and(traversable, np.logical_not(col_map_unknown))
-        """
+        # update map
+        traversable = self.update_map()
 
         # call the planner
         self.planner = FMMPlanner(
@@ -202,7 +243,7 @@ class Slam(object):
         print("stg = {}".format(self.stg))
         print("stg real = {}".format(stg_real))
 
-        # convert stg real from init frame to global frame#
+        # convert stg real from init frame to global frame of pyrobot
         stg_real_g = self.get_absolute_goal((stg_real[0], stg_real[1], 0))
         robot_state = self.get_rel_state(self.get_robot_global_state(), self.init_state)
         print("bot_state before executing action = {}".format(robot_state))
@@ -216,20 +257,21 @@ class Slam(object):
                     stg_real[1] - self.prev_bot_state[1], stg_real[0] - self.prev_bot_state[0]
                 )
                 - robot_state[2],
-            )
+            ),
+            wait=self.exec_wait,
         )
+        while self.robot.base._as.get_state() == LocalActionStatus.ACTIVE:
+            if self.save_vis:
+                self.save_rgb_depth_seg()
+            else:
+                pass
 
         # update map
-        robot_state = self.get_rel_state(self.get_robot_global_state(), self.init_state)
-        self.map_builder.update_map(
-            self.robot.camera.get_current_pcd(in_cam=False)[0], robot_state
-        )
-        obstacle = self.map_builder.map[:, :, 1] >= 1.0
-        selem = disk(self.robot_rad / self.map_builder.resolution)
-        traversable = binary_dilation(obstacle, selem) != True
+        traversable = self.update_map()
 
         """
         # add robot collision map to traversable area
+        # commented it as on real robot this gives issue sometime
         unknown_region = self.map_builder.map.sum(axis=-1) < 1
         col_map_unknown = np.logical_and(self.col_map > 0.1, unknown_region)
         traversable = np.logical_and(traversable, np.logical_not(col_map_unknown))
@@ -253,8 +295,14 @@ class Slam(object):
                         stg_real[1] - self.prev_bot_state[1], stg_real[0] - self.prev_bot_state[0]
                     )
                     + self.init_state[2],
-                )
+                ),
+                wait=self.exec_wait,
             )
+            while self.robot.base._as.get_state() == LocalActionStatus.ACTIVE:
+                if self.save_vis:
+                    self.save_rgb_depth_seg()
+                else:
+                    pass
 
         robot_state = self.get_rel_state(self.get_robot_global_state(), self.init_state)
         print("bot_state after executing action = {}".format(robot_state))
@@ -287,8 +335,15 @@ class Slam(object):
             np.linalg.norm(np.array(robot_state[:2]) - np.array(self.goal_loc[:2])) * 100.0
             < np.sqrt(2) * self.map_builder.resolution
         ):
-            self.robot.base.go_to_absolute(self.get_absolute_goal(self.goal_loc))
+            self.robot.base.go_to_absolute(
+                self.get_absolute_goal(self.goal_loc), wait=self.exec_wait
+            )
             print("robot has reached goal")
+            while self.robot.base._as.get_state() == LocalActionStatus.ACTIVE:
+                if self.save_vis:
+                    self.save_rgb_depth_seg()
+                else:
+                    pass
             return True
 
         # return False if goal is not reachable
@@ -303,6 +358,34 @@ class Slam(object):
             self.whole_area_explored = True
             return False
         return None
+
+    def save_rgb_depth_seg(self):
+        rgb, depth, seg = self.robot.camera.get_rgb_depth_segm()
+        pos = self.robot.base.get_state()
+        self.skp += 1
+        if pos != self.last_pos and self.skp % 10 == 0:
+            self.last_pos = pos
+            # store the images and depth
+            cv2.imwrite(
+                self.img_folder + "/{:05d}.jpg".format(self.img_count),
+                cv2.cvtColor(rgb, cv2.COLOR_BGR2RGB),
+            )
+
+            # store depth in mm
+            depth *= 1e3
+            depth[depth > np.power(2, 16) - 1] = np.power(2, 16) - 1
+            depth = depth.astype(np.uint16)
+            np.save(self.depth_folder + "/{:05d}.npy".format(self.img_count), depth)
+
+            # store seg
+            np.save(self.seg_folder + "/{:05d}.npy".format(self.img_count), seg)
+
+            # store pos
+            self.pos_dic[self.img_count] = copy(pos)
+            self.img_count += 1
+            print(f"img_count {self.img_count}, skp {self.skp}, base_pos {pos}")
+            with open(os.path.join(self.save_folder, "data.json"), "w") as fp:
+                json.dump(self.pos_dic, fp)
 
     def get_absolute_goal(self, loc):
         """
@@ -525,41 +608,87 @@ class Slam(object):
 def main(args):
     if args.robot == "habitat":
         assets_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "../../tests/test_assets")
+            os.path.join(os.path.dirname(__file__), "../../test/test_assets")
         )
-        config = {
-            "physics_config": os.path.join(assets_path, "default.phys_scene_config.json"),
-            "scene_path": "/Replica-Dataset/apartment_0/habitat/mesh_semantic.ply",
-        }
-        robot = Robot("habitat", common_config=config)
-        from habitat_utils import reconfigure_scene
+        scene = args.scene
+        time.sleep(10.0)
+        try:
+            config = {
+                "physics_config": os.path.join(assets_path, "default.phys_scene_config.json"),
+                "scene_path": "{}/{}/habitat/mesh_semantic.ply".format(args.dataset_path, scene),
+            }
+            args.store_path = "./tmp/{}".format(scene)
+            robot = Robot("habitat", common_config=config)
+            agent_state = robot.base.agent.get_state()
+            # place the robot at place where it can move
+            p = robot.base.sim.pathfinder.get_random_navigable_point()
 
-        class Env:
-            def __init__(self, robot):
-                self._robot = robot
+            agent_state.position = copy(p)
+            agent_state.sensor_states["rgb"].position = copy(p + np.array([0.0, 0.6, 0.0]))
+            agent_state.sensor_states["depth"].position = copy(p + np.array([0.0, 0.6, 0.0]))
+            agent_state.sensor_states["semantic"].position = copy(p + np.array([0.0, 0.6, 0.0]))
+            robot.base.agent.set_state(agent_state)
+            print("trying scene = {}".format(scene))
 
-        env = Env(robot)
-        reconfigure_scene(env, config["scene_path"])
+            slam = Slam(
+                robot,
+                args.robot,
+                args.map_size,
+                args.resolution,
+                args.robot_rad,
+                args.agent_min_z,
+                args.agent_max_z,
+                args.vis,
+                args.save_vis,
+                args.store_path,
+            )
+            slam.set_goal(tuple(args.goal))
+            while slam.take_step(step_size=args.step_size) is None:
+                slam.visualize()
+
+            # save pos dic
+            with open(os.path.join(slam.save_folder, "data.json"), "w") as fp:
+                json.dump(slam.pos_dic, fp)
+            slam.visualize()
+
+            """
+            # helpful visualizing the exploration
+            #TODO: to make it work need to install ffmpeg to cker image
+            # generate gif out of plt images
+            os.system(
+                "ffmpeg -framerate 6 -f image2 -i {}/%04d.jpg {}/exploration.gif".format(
+                    slam.save_folder, slam.save_folder
+                )
+            )
+
+            # rm plt images
+            os.system("rm {}/*.jpg".format(slam.save_folder))
+            """
+        except:
+            print("not able to open the scene = {}".format(scene))
 
     elif args.robot == "locobot":
         robot = Robot("locobot")
+        slam = Slam(
+            robot,
+            args.robot,
+            args.map_size,
+            args.resolution,
+            args.robot_rad,
+            args.agent_min_z,
+            args.agent_max_z,
+            args.vis,
+            args.save_vis,
+            args.store_path,
+        )
+        slam.set_goal(tuple(args.goal))
+        while slam.take_step(step_size=args.step_size) is None:
+            slam.visualize()
 
-    slam = Slam(
-        robot,
-        args.robot,
-        args.map_size,
-        args.resolution,
-        args.robot_rad,
-        args.agent_min_z,
-        args.agent_max_z,
-        args.vis,
-        args.save_vis,
-        args.store_path,
-    )
-    slam.set_goal(tuple(args.goal))
-    while slam.take_step(step_size=args.step_size) is None:
+        # save pos dic
+        with open(os.path.join(slam.save_folder, "data.json"), "w") as fp:
+            json.dump(slam.pos_dic, fp)
         slam.visualize()
-    slam.visualize()
 
 
 if __name__ == "__main__":
@@ -583,6 +712,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--store_path", help="path to store visualization", type=str, default="./tmp"
     )
-
+    parser.add_argument(
+        "--dataset_path",
+        help="path where Replica dataset is stored",
+        type=str,
+        default="/Replica-Dataset",
+    )
+    parser.add_argument(
+        "--scene", help="scence name for data collection", type=str, default="apartment_0"
+    )
     args = parser.parse_args()
     main(args)
