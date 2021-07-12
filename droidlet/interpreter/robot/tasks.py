@@ -12,7 +12,7 @@ from droidlet.interpreter.task import Task
 
 from droidlet.interpreter.robot.objects import DanceMovement
 
-from droidlet.lowlevel.locobot.locobot_mover_utils import (
+from droidlet.lowlevel.robot_mover_utils import (
     get_move_target_for_point,
     ARM_HEIGHT,
     get_camera_angles,

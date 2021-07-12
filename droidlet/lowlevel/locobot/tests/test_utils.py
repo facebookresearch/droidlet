@@ -8,7 +8,7 @@ import math
 import unittest
 import logging
 
-from droidlet.lowlevel.locobot.locobot_mover_utils import (
+from droidlet.lowlevel.robot_mover_utils import (
     get_move_target_for_point,
     xyz_canonical_coords_to_pyrobot_coords,
     xyz_pyrobot_to_canonical_coords,

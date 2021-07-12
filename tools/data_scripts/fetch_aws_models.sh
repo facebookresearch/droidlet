@@ -46,7 +46,7 @@ mkdir -p agents/${AGENT}/models
 
 tar -xzvf $MODELS_DIRNAME.tar.gz -C agents/${AGENT}/models --strip-components 1 || echo "Failed to download and unarchive. Please make sure the file: ${MODELS_DIRNAME}_${CHECKSUM}.tar.gz exists on S3." 
 
-if [ $AGENT == "locobot" ]; then
+if [[ $AGENT =~ ^(locobot|hello_robot)$ ]]; then
     curl https://locobot-bucket.s3-us-west-2.amazonaws.com/perception_models.tar.gz -o locobot_models.tar.gz
     tar -xzvf locobot_models.tar.gz -C agents/${AGENT}/models
 

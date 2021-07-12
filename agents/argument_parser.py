@@ -7,7 +7,9 @@ import os
 
 class ArgumentParser:
     def __init__(self, agent_type, base_path):
-        self.agent_parsers = {"Minecraft": self.add_mc_parser, "Locobot": self.add_loco_parser}
+        self.agent_parsers = {
+            "Minecraft": self.add_mc_parser, "Locobot": self.add_loco_parser
+        }
         self.base_path = base_path
         self.parser = argparse.ArgumentParser()
 

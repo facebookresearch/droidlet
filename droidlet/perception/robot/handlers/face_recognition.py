@@ -109,6 +109,7 @@ class FaceRecognition(AbstractHandler):
         known_face_names = list(faces.keys())
 
         img = rgb_depth.rgb
+        print(f'rgb type {type(img)}')
         # get the bounding boxes from the face_recognition module
         face_rec_locations = fr.face_locations(img)
         # get the bounding boxes from facenet module

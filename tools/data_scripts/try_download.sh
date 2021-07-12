@@ -74,7 +74,7 @@ calculate_sha1sum "${AGENT_PATH}datasets" "${AGENT_PATH}datasets/checksum.txt"
 compare_checksum_try_download "${AGENT_PATH}datasets/checksum.txt" "datasets"
 
 # Agent specific models 
-if [ $AGENT == "locobot" ]; then
+if [[ $AGENT =~ ^(locobot|hello_robot)$ ]]; then
     calculate_sha1sum "${AGENT_PATH}models/perception" "${AGENT_PATH}models/locobot_checksum.txt"
     compare_checksum_try_download "${AGENT_PATH}models/locobot_checksum.txt" "locobot"
 fi

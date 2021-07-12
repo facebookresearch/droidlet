@@ -37,7 +37,7 @@ cd ${ROOTDIR}/$AGENT/agent/
 echo "Computing hashes ..."
 if [ "$HASH_PATH" = "models" ]
 then
-    if [ $AGENT == "locobot" ]; then
+    if [[ $AGENT =~ ^(locobot|hello_robot)$ ]]; then
         calculate_sha1sum  "${ROOTDIR}/$AGENT/agent/models/perception" "${ROOTDIR}/tools/data_scripts/default_checksums/locobot.txt" 
     fi # craftassist
     calculate_sha1sum "${ROOTDIR}/$AGENT/agent/models/semantic_parser" "${ROOTDIR}/tools/data_scripts/default_checksums/nsp.txt" 

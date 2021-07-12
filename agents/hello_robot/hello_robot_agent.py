@@ -19,16 +19,13 @@ if __name__ == "__main__":
     dashboard.start()
 
 from droidlet.dialog.dialogue_manager import DialogueManager
-from droidlet.dialog.map_to_dialogue_object import DialogueObjectMapper
+from droidlet.dialog.droidlet_nsp_model_wrapper import DroidletNSPModelWrapper
 from droidlet.base_util import to_player_struct, Pos, Look, Player
 from droidlet.memory.memory_nodes import PlayerNode
-from droidlet.perception.semantic_parsing.nsp_querier import NSPQuerier
 from agents.loco_mc_agent import LocoMCAgent
 from agents.argument_parser import ArgumentParser
-from droidlet.memory.robot.loco_memory import LocoAgentMemory, DetectedObjectNode
-from droidlet.perception.robot import Perception
-from droidlet.perception.semantic_parsing.utils.interaction_logger import InteractionLogger
-from self_perception import SelfPerception
+from droidlet.memory.robot.loco_memory import LocoAgentMemory
+from droidlet.perception.robot import Perception, SelfPerception
 from droidlet.interpreter.robot import (
     dance, 
     default_behaviors,
@@ -38,7 +35,8 @@ from droidlet.interpreter.robot import (
 )
 from droidlet.dialog.robot import LocoBotCapabilities
 import droidlet.lowlevel.rotation as rotation
-from droidlet.lowlevel.locobot.locobot_mover import LoCoBotMover
+
+from droidlet.lowlevel.hello_robot.hello_robot_mover import HelloRobotMover
 from droidlet.event import sio
 
 faulthandler.register(signal.SIGUSR1)
@@ -51,8 +49,8 @@ logging.getLogger().setLevel(logging.DEBUG)
 logging.getLogger().handlers.clear()
 
 
-class LocobotAgent(LocoMCAgent):
-    """Implements an instantiation of the LocoMCAgent on a Locobot. It starts
+class HelloRobotAgent(LocoMCAgent):
+    """Implements an instantiation of the LocoMCAgent on a Hello Robot Stretch RE1. It starts
     off the agent processes including launching the dashboard.
 
     Args:
@@ -61,14 +59,14 @@ class LocobotAgent(LocoMCAgent):
         name (string, optional): a name for your agent (default: Locobot)
 
     Example:
-        >>> python locobot_agent.py --backend 'locobot'
+        >>> python hello_robot_agent.py'
     """
 
     coordinate_transforms = rotation
 
-    def __init__(self, opts, name="Locobot"):
-        super(LocobotAgent, self).__init__(opts)
-        logging.info("LocobotAgent.__init__ started")
+    def __init__(self, opts, name="HelloRobot"):
+        super(HelloRobotAgent, self).__init__(opts)
+        logging.info("HelloRobotAgent.__init__ started")
         self.opts = opts
         self.entityId = 0
         self.no_default_behavior = opts.no_default_behavior
@@ -82,26 +80,24 @@ class LocobotAgent(LocoMCAgent):
         self.init_event_handlers()
         # list of (prob, default function) pairs
         self.visible_defaults = [(1.0, default_behaviors.explore)]
-        self.interaction_logger = InteractionLogger()
 
     def init_event_handlers(self):
         super().init_event_handlers()
 
-        @sio.on("movement command")
+        @sio.on("command")
         def test_command(sid, commands):
-            movement = [0.0, 0.0, 0.0]
             for command in commands:
                 if command == "MOVE_FORWARD":
-                    movement[0] += 0.1
+                    self.mover.bot.translate_by(0.1)
                     print("action: FORWARD")
                 elif command == "MOVE_BACKWARD":
-                    movement[0] -= 0.1
+                    self.mover.bot.translate_by(-0.1)
                     print("action: BACKWARD")
                 elif command == "MOVE_LEFT":
-                    movement[2] += 0.3
+                    self.mover.bot.rotate_by(0.2)
                     print("action: LEFT")
                 elif command == "MOVE_RIGHT":
-                    movement[2] -= 0.3
+                    self.mover.bot.rotate_by(-0.2)
                     print("action: RIGHT")
                 elif command == "PAN_LEFT":
                     self.mover.bot.set_pan(self.mover.bot.get_pan() + 0.08)
@@ -111,23 +107,10 @@ class LocobotAgent(LocoMCAgent):
                     self.mover.bot.set_tilt(self.mover.bot.get_tilt() - 0.08)
                 elif command == "TILT_DOWN":
                     self.mover.bot.set_tilt(self.mover.bot.get_tilt() + 0.08)
-            self.mover.move_relative([movement])
 
         @sio.on("shutdown")
         def _shutdown(sid, data):
             self.shutdown()
-
-        @sio.on("get_memory_objects")
-        def objects_in_memory(sid):
-            objects = DetectedObjectNode.get_all(self.memory)
-            for o in objects:
-                del o["feature_repr"] # pickling optimization
-            self.dashboard_memory["objects"] = objects
-            sio.emit("updateState", {"memory": self.dashboard_memory})
-        
-        @sio.on("interaction data")
-        def log_interaction_data(sid, interactionData):
-            self.interaction_logger.logInteraction(interactionData)
 
     def init_memory(self):
         """Instantiates memory for the agent.
@@ -149,37 +132,10 @@ class LocobotAgent(LocoMCAgent):
         Each perceptual module should have a perceive method that is
         called by the base agent event loop.
         """
-        self.chat_parser = NSPQuerier(self.opts)
         if not hasattr(self, "perception_modules"):
             self.perception_modules = {}
         self.perception_modules["self"] = SelfPerception(self)
-        self.perception_modules["vision"] = Perception(self.opts.perception_model_dir)
-
-    def perceive(self, force=False):
-        self.perception_modules["self"].perceive(force=force)
-
-
-        rgb_depth = self.mover.get_rgb_depth()
-        xyz = self.mover.get_base_pos_in_canonical_coords()
-        x, y, yaw = xyz
-        sio.emit("map", {
-            "x": x,
-            "y": y,
-            "yaw": yaw,
-            "map": self.mover.get_obstacles_in_canonical_coords()
-        })
-
-        previous_objects = DetectedObjectNode.get_all(self.memory)
-        new_state = self.perception_modules["vision"].perceive(rgb_depth,
-                                                               xyz,
-                                                               previous_objects,
-                                                               force=force)
-        if new_state is not None:
-            new_objects, updated_objects = new_state
-            for obj in new_objects:
-                obj.save_to_memory(self.memory)
-            for obj in updated_objects:
-                obj.save_to_memory(self.memory, update=True)
+        self.perception_modules["vision"] = Perception(self, self.opts.perception_model_dir)
 
     def init_controller(self):
         """Instantiates controllers - the components that convert a text chat to task(s)."""
@@ -191,13 +147,13 @@ class LocobotAgent(LocoMCAgent):
         self.dialogue_manager = DialogueManager(
             memory=self.memory,
             dialogue_object_classes=dialogue_object_classes,
-            dialogue_object_mapper=DialogueObjectMapper,
+            semantic_parsing_model_wrapper=DroidletNSPModelWrapper,
             opts=self.opts,
         )
 
     def init_physical_interfaces(self):
         """Instantiates the interface to physically move the robot."""
-        self.mover = LoCoBotMover(ip=self.opts.ip, backend=self.opts.backend)
+        self.mover = HelloRobotMover(ip=self.opts.ip)
 
     def get_player_struct_by_name(self, speaker_name):
         p = self.memory.get_player_by_name(speaker_name)
@@ -240,16 +196,7 @@ class LocobotAgent(LocoMCAgent):
 
     def shutdown(self):
         self._shutdown = True
-        try:
-            self.perception_modules["vision"].vprocess_shutdown.set()
-        except:
-            """
-            the try/except is there in the event that
-            self.perception_modules["vision"] has either:
-            1. not been fully started yet
-            2. already crashed / shutdown due to other effects
-            """
-            pass
+        self.perception_modules["vision"].vprocess_shutdown.set()
 
 
 if __name__ == "__main__":
@@ -267,9 +214,9 @@ if __name__ == "__main__":
 
     # Check that models and datasets are up to date
     if not opts.dev:
-        rc = subprocess.call([opts.verify_hash_script_path, "locobot"])
+        rc = subprocess.call([opts.verify_hash_script_path, "hello_robot"])
 
     set_start_method("spawn", force=True)
 
-    sa = LocobotAgent(opts)
+    sa = HelloRobotAgent(opts)
     sa.start()

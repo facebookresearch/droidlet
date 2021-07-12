@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from droidlet.lowlevel.locobot.locobot_mover_utils import xyz_pyrobot_to_canonical_coords
+from droidlet.lowlevel.robot_mover_utils import xyz_pyrobot_to_canonical_coords
 from droidlet.base_util import TICKS_PER_SEC
 
 
@@ -81,8 +81,7 @@ class RGBDepth:
         import base64
 
         rgb = self.rgb
-        depth = self.depth
-
+        depth = self.depth 
         if size is not None:
             rgb = cv2.resize(rgb, (size, size), interpolation=cv2.INTER_LINEAR)
             depth = cv2.resize(depth, (size, size), interpolation=cv2.INTER_LINEAR)
