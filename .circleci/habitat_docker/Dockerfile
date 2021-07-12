@@ -55,9 +55,8 @@ RUN git clone https://github.com/facebookresearch/habitat-sim && \
 RUN patchelf --set-rpath '$ORIGIN' /root/pyenv_pyrobot_python3/lib/python3.6/site-packages/habitat_sim-0.1.4-py3.6-linux-x86_64.egg/habitat_sim/_ext/habitat_sim_bindings.cpython-36m-x86_64-linux-gnu.so
 
 # tested pyrobot commit that works with Habitat
-RUN cd ~/low_cost_ws/src/pyrobot && git checkout Develop && \
-    git pull https://github.com/facebookresearch/pyrobot Develop && \
-    git checkout de3e54ea9e1196ea96caf8672646d5dfd63a3731 && \
+RUN cd ~/low_cost_ws/src/pyrobot && git reset --hard HEAD &&\
+    git fetch https://github.com/facebookresearch/pyrobot droidlet/habitat && git checkout droidlet/habitat && \
     . /root/pyenv_pyrobot_python3/bin/activate && . /root/pyrobot_catkin_ws/devel/setup.bash && \
     pip install -e . && \
     pip install -e . && \

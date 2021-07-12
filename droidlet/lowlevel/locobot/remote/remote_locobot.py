@@ -28,7 +28,7 @@ class RemoteLocobot(object):
         backend_config (dict): the backend config used for connecting to Habitat (default: None)
     """
 
-    def __init__(self, backend="locobot", backend_config=None):
+    def __init__(self, backend="locobot", backend_config=None, noisy=False):
         if backend == "locobot":
             base_config_dict = {"base_controller": "proportional"}
             arm_config_dict = dict(moveit_planner="ESTkConfigDefault")
@@ -53,6 +53,7 @@ class RemoteLocobot(object):
                 backend_config["physics_config"] = os.path.join(
                     assets_path, "default.phys_scene_config.json"
                 )
+            backend_config["noisy"] = noisy
             print("backend_config", backend_config)
             self.backend_config = backend_config
             # we do it this way to have the ability to restart from the client at arbitrary times
@@ -708,7 +709,14 @@ if __name__ == "__main__":
         help="Optional config argument to be passed to the backend."
         "Currently mainly used to pass Habitat environment path",
         type=json.loads,
-        default='{"scene_path": "/Replica-Dataset/apartment_0/habitat/mesh_semantic.ply", "physics_config": "DEFAULT"}',
+        default='{"scene_path": "/Replica-Dataset/apartment_0/habitat/mesh_semantic.ply", \
+            "physics_config": "DEFAULT"}',
+    )
+    parser.add_argument(
+         "--noisy",
+        type=bool,
+        default=os.getenv("NOISY_HABITAT", "False").lower() in ("true", "True"),
+        help="Set to True to load habitat with rgb, depth and movement noise models"
     )
 
     args = parser.parse_args()
@@ -723,7 +731,11 @@ if __name__ == "__main__":
         Pyro4.config.SERVERTYPE = "multiplex"
 
     with Pyro4.Daemon(args.ip) as daemon:
-        robot = RemoteLocobot(backend=args.backend, backend_config=args.backend_config)
+        robot = RemoteLocobot(
+            backend=args.backend, 
+            backend_config=args.backend_config,
+            noisy=args.noisy,
+        )
         robot_uri = daemon.register(robot)
         with Pyro4.locateNS() as ns:
             ns.register("remotelocobot", robot_uri)

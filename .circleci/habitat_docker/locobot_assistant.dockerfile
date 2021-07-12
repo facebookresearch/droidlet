@@ -1,6 +1,6 @@
 # syntax = docker/dockerfile:experimental
 # FROM nvidia/cudagl:10.1-base-ubuntu18.04 as base
-FROM dhirajgandhi/pyrobot-and-habitat:1.0 as base
+FROM theh1ghwayman/pyrobot-habitat:1.0 as base
 
 RUN apt-get update && apt-get install -y \
     cmake \
