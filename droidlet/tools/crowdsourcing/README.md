@@ -88,3 +88,18 @@ mephisto:
       AWS_SECRET_ACCESS_KEY: XXX
       AWS_DEFAULT_REGION: XXX (should be "us-west-1")
 ```
+
+### Processing S3 Logs
+
+To maintain a local copy of interaction logs stored in S3, run
+
+```
+aws s3 sync s3://craftassist/turk_interactions_with_agent/turk/ ~/turk_interactions_with_agent
+```
+
+This creates a local directory `turk_interactions_with_agent` that contains all the files in the S3 path. You will need to run this periodically to fetch updates when Turk tasks complete and logs are uploaded.
+
+Assuming you have a local directory synced to the S3 path, you can process the logs by running `process_s3_logs.py`.
+
+This script will traverse the S3 logs directory and untar the tar files, then read all the CSV files for a given type of interaction, deduplicate and clean data, and write the output to a given location. 
+
