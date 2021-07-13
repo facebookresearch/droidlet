@@ -26,6 +26,7 @@ public:
   explicit GripperControllerImpl(std::string robot_ip) {
     std::cout << "Connecting to robot_ip " << robot_ip << std::endl;
     gripper_ = new franka::Gripper(robot_ip);
+    gripper_state_ = new franka::GripperState;
   }
 
   Status GetGripperState(ServerContext *context, const Empty *,
