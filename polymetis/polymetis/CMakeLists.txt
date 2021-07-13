@@ -167,6 +167,13 @@ if(BUILD_FRANKA)
       Franka::Franka
       yaml-cpp
   )
+
+  add_executable(franka_gripper src/clients/franka_panda_client/franka_gripper.cpp)
+  target_link_libraries(franka_gripper
+      generated_grpc_protos
+      Franka::Franka
+      yaml-cpp
+  )
 endif()
 
 
