@@ -8,13 +8,13 @@ import time
 import numpy as np
 import datetime
 import os
+import droidlet.event.dispatcher as dispatch
 
 from agents.core import BaseAgent
 from droidlet.shared_data_structs import ErrorWithResponse
 from droidlet.event import sio, dispatch
 from droidlet.base_util import hash_user
 from droidlet.memory.save_and_fetch_commands import *
-
 random.seed(0)
 
 DATABASE_FILE_FOR_DASHBOARD = "dashboard_data.db"

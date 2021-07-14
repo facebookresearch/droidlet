@@ -141,7 +141,11 @@ class Perception:
         serialized_humans = [x.to_struct() for x in humans] if humans is not None else []
 
         sio.emit("rgb", serialized_image["rgb"])
-        sio.emit("depth", serialized_image["depth"])
+        sio.emit("depth", {
+            "depthImg": serialized_image["depth_img"],
+            "depthMax": serialized_image["depth_max"],
+            "depthMin": serialized_image["depth_min"],
+        })
 
         sio.emit("objects", {
             "image": serialized_object_image,

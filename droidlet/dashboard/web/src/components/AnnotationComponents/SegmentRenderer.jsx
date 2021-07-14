@@ -29,7 +29,6 @@ class SegmentRenderer extends React.Component {
     super(props);
 
     this.update = this.update.bind(this);
-    this.drawLine = this.drawLine.bind(this);
     this.onClick = this.onClick.bind(this);
     this.regions = {}; // array of mask sets
 
@@ -48,6 +47,10 @@ class SegmentRenderer extends React.Component {
     this.scale = this.baseScale;
     this.canvas.height = this.props.img.height * this.baseScale;
     this.update();
+  }
+
+  componentDidUpdate() {
+    this.update()
   }
 
   render() {
@@ -83,25 +86,27 @@ class SegmentRenderer extends React.Component {
     );
     this.ctx.drawImage(this.props.img, 0, 0);
 
-    // Draw regions
+    // Draw masks
     for (let i = 0; i < this.props.objects.length; i++) {
       let curId = this.props.objects[i];
-      let pts_arr = this.props.pointMap[curId];
-      if (pts_arr.length === 0) {
+      let mask = this.props.pointMap[curId];
+      if (mask.length === 0) {
         continue;
       }
 
+      // Draw lines and regions
       this.regions[curId] = [];
-      let color =
+      let regionColor =
         this.props.colors[i % this.props.colors.length] || "rgba(0,200,0,.5)";
+      let lineColor = this.props.originTypeMap[curId] === "detector" ? "white" : "black";
       // Go through masks in label
-      for (let j in pts_arr) {
+      for (let j in mask) {
         // Denormalize points
-        let points = pts_arr[j].map((pt) => ({
+        let points = mask[j].map((pt) => ({
           x: pt.x * this.canvas.width,
           y: pt.y * this.canvas.height,
         }));
-        let region = this.drawRegion(points, color);
+        let region = this.drawRegionsAndLines(points, regionColor, lineColor);
         this.regions[curId].push(region);
       }
     }
@@ -126,14 +131,7 @@ class SegmentRenderer extends React.Component {
     this.props.onClick(e.clientX, e.clientY, regionFound, regionId);
   }
 
-  drawLine(pt1, pt2) {
-    this.ctx.beginPath();
-    this.ctx.moveTo(pt1.x, pt1.y);
-    this.ctx.lineTo(pt2.x, pt2.y);
-    this.ctx.stroke();
-  }
-
-  drawRegion(points, color) {
+  drawRegionsAndLines(points, regionColor, lineColor) {
     if (points.length < 3) {
       return;
     }
@@ -141,11 +139,21 @@ class SegmentRenderer extends React.Component {
     region.moveTo(points[0].x, points[0].y);
     for (let i = 1; i < points.length; i++) {
       region.lineTo(points[i].x, points[i].y);
+      this.drawLine(points[i - 1], points[i], lineColor)
     }
+    this.drawLine(points[0], points[points.length - 1], lineColor)
     region.closePath();
-    this.ctx.fillStyle = color;
+    this.ctx.fillStyle = regionColor;
     this.ctx.fill(region, "evenodd");
     return region;
+  }
+
+  drawLine(pt1, pt2, lineColor) {
+    this.ctx.beginPath();
+    this.ctx.moveTo(pt1.x, pt1.y);
+    this.ctx.lineTo(pt2.x, pt2.y);
+    this.ctx.strokeStyle = lineColor;
+    this.ctx.stroke();
   }
 
   getCanvasBoundingBox() {

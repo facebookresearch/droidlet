@@ -45,36 +45,31 @@ class ObjectAnnotation extends React.Component {
       currentOverlay: null,
       currentMaskId: null,
     };
-
-    this.nextId = objects.length;
-    this.nameMap = {};
-    this.pointMap = {};
-    this.propertyMap = {};
-    for (let i = 0; i < objects.length; i++) {
-      let curObject = objects[i];
-      this.nameMap[i] = curObject.label;
-      this.pointMap[i] = curObject.mask;
-      this.parsePoints(i);
-      this.propertyMap[i] = curObject.properties;
-    }
+    this.processProps(objects)
 
     this.registerClick = this.registerClick.bind(this);
-
-    if (this.props.image !== undefined) {
-      this.image = this.props.image;
-    } else {
-      this.image = new Image();
-      this.image.onload = () => {
-        this.forceUpdate();
-      };
-      this.image.src = this.props.imgUrl;
-    }
     this.segRef = React.createRef();
     this.overtime = false;
     setInterval(() => {
       //alert("Please finish what you're working on and click Submit Task below")
       this.overtime = true;
     }, 1000 * 60 * window.MINUTES);
+  }
+
+  componentDidUpdate() {
+    let objects = this.props.objects;
+    if (!this.props.objects) {
+      objects = this.props.stateManager.curFeedState.objects;
+    }
+    if (JSON.stringify(objects) !== JSON.stringify(this.objects)) {
+      this.setState({
+        objectIds: [...Array(objects.length).keys()], 
+        currentMode: "select", 
+        currentOverlay: null,
+        currentMaskId: null,
+      })
+      this.processProps(objects)
+    }
   }
 
   render() {
@@ -94,6 +89,7 @@ class ObjectAnnotation extends React.Component {
           tags={this.drawing_data.tags}
           masks={this.pointMap[this.state.currentMaskId]}
           isMobile={this.props.isMobile}
+          originType={this.originTypeMap[this.state.currentMaskId]}
           color={color}
           exitCallback={() => {
             this.setState({ currentMode: "select" });
@@ -134,6 +130,7 @@ class ObjectAnnotation extends React.Component {
             img={this.image}
             objects={this.state.objectIds}
             pointMap={this.pointMap}
+            originTypeMap={this.originTypeMap}
             colors={COLORS}
             imageWidth={this.props.imageWidth}
             onClick={this.registerClick}
@@ -143,6 +140,33 @@ class ObjectAnnotation extends React.Component {
           </button>
         </div>
       );
+    }
+  }
+
+  processProps(objects) {
+    this.nextId = objects.length;
+    this.objects = objects;
+    this.nameMap = {};
+    this.pointMap = {};
+    this.propertyMap = {};
+    this.originTypeMap = {};
+    for (let i = 0; i < objects.length; i++) {
+      let curObject = objects[i];
+      this.nameMap[i] = curObject.label;
+      this.pointMap[i] = curObject.mask;
+      this.parsePoints(i);
+      this.propertyMap[i] = curObject.properties;
+      this.originTypeMap[i] = curObject.type;
+    }
+
+    if (this.props.image !== undefined) {
+      this.image = this.props.image;
+    } else {
+      this.image = new Image();
+      this.image.onload = () => {
+        this.forceUpdate();
+      };
+      this.image.src = this.props.imgUrl;
     }
   }
 
@@ -165,7 +189,7 @@ class ObjectAnnotation extends React.Component {
         minY = Math.min(pt.y, minY);
       }
       let totalDiff = maxX - minX + maxY - minY;
-      let maxPoints = totalDiff < 0.015 ? 3 : totalDiff * 50;
+      let maxPoints = totalDiff < 0.06 ? 3 : totalDiff * 50;
       if (this.pointMap[i][j].length > maxPoints) {
         // Take every nth point so that the mask is maxPoints points
         let newArr = [];
@@ -289,13 +313,20 @@ class ObjectAnnotation extends React.Component {
       return;
     }
 
+    for (let key in this.propertyMap) {
+      if (typeof this.propertyMap[key] === typeof "") {
+        this.propertyMap[key] = this.propertyMap[key].split("\n ")
+      }
+    }
     const postData = {
       nameMap: this.nameMap,
       propertyMap: this.propertyMap,
       pointMap: this.pointMap,
     };
+
     this.props.stateManager.socket.emit("saveObjectAnnotation", postData);
     this.props.stateManager.logInteractiondata("object annotation", postData);
+    this.props.stateManager.onObjectAnnotationSave(postData);
     if (this.props.not_turk === true) return;
 
     // TODO: uncomment this to get working in a turk setting again

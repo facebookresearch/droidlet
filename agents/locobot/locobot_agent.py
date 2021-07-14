@@ -10,6 +10,10 @@ import random
 import logging
 import faulthandler
 from multiprocessing import set_start_method
+import base64
+import cv2
+from imantics import Mask, Polygons
+import numpy as np
 
 from droidlet import dashboard
 
@@ -40,6 +44,7 @@ from droidlet.dialog.robot import LocoBotCapabilities
 import droidlet.lowlevel.locobot.rotation as rotation
 from droidlet.lowlevel.locobot.locobot_mover import LoCoBotMover
 from droidlet.event import sio
+from droidlet.perception.robot import LabelPropagate
 
 faulthandler.register(signal.SIGUSR1)
 
@@ -128,6 +133,64 @@ class LocobotAgent(LocoMCAgent):
         @sio.on("interaction data")
         def log_interaction_data(sid, interactionData):
             self.interaction_logger.logInteraction(interactionData)
+
+        @sio.on("label_propagation")
+        def label_propagation(sid, postData): 
+                        
+            # Decode rgb map
+            rgb_bytes = base64.b64decode(postData["prevRgbImg"])
+            rgb_np = np.frombuffer(rgb_bytes, dtype=np.uint8)
+            rgb_bgr = cv2.imdecode(rgb_np, cv2.IMREAD_COLOR)
+            rgb = cv2.cvtColor(rgb_bgr, cv2.COLOR_BGR2RGB)
+            src_img = np.array(rgb)
+            height, width, _ = src_img.shape
+
+            # Convert depth map to meters
+            depth_imgs = []
+            for i, depth in enumerate([postData["prevDepth"], postData["depth"]]): 
+                depth_encoded = depth["depthImg"]
+                depth_bytes = base64.b64decode(depth_encoded)
+                depth_np = np.frombuffer(depth_bytes, dtype=np.uint8)
+                depth_decoded = cv2.imdecode(depth_np, cv2.IMREAD_COLOR)
+                depth_unscaled = (255 - np.copy(depth_decoded[:,:,0]))
+                depth_scaled = depth_unscaled / 255 * (float(depth["depthMax"]) - float(depth["depthMin"]))
+                depth_imgs.append(depth_scaled)
+            src_depth = np.array(depth_imgs[0])
+            cur_depth = np.array(depth_imgs[1])
+
+            # Convert mask points to mask maps then combine them
+            src_label = np.zeros((height, width)).astype(int)
+            for n, o in enumerate(postData["prevObjects"]): 
+                poly = Polygons(o["mask"])
+                bitmap = poly.mask(height, width)
+                # TODO probably a cleaner way to do this with numpy arrays
+                for i in range(height): 
+                    for j in range(width): 
+                        if bitmap[i][j]: 
+                            src_label[i][j] = n + 1
+
+            # Attach base pose data
+            pose = postData["prevBasePose"]
+            src_pose = np.array([pose["x"], pose["y"], pose["yaw"]])
+            pose = postData["basePose"]
+            cur_pose = np.array([pose["x"], pose["y"], pose["yaw"]])
+            
+            LP = LabelPropagate()
+            res_labels = LP(src_img, src_depth, src_label, src_pose, cur_pose, cur_depth)
+
+            # Convert mask maps to mask points
+            objects = postData["prevObjects"]
+            for i_float in np.unique(res_labels): 
+                i = int(i_float)
+                if i == 0: 
+                    continue
+                mask_points_nd = Mask(np.where(res_labels == i, 1, 0)).polygons().points
+                mask_points = list(map(lambda x: x.tolist(), mask_points_nd))
+                objects[i-1]["mask"] = mask_points
+                objects[i-1]["type"] = "annotate"
+
+            # Returns an array of objects with updated masks
+            sio.emit("labelPropagationReturn", objects)
 
     def init_memory(self):
         """Instantiates memory for the agent.

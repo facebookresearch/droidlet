@@ -663,7 +663,7 @@ class PolygonTool extends React.Component {
   }
 
   drawPoint(pt) {
-    this.ctx.fillStyle = "black";
+    this.ctx.fillStyle = this.props.originType === "detector" ? "white" : "black";
     if (
       this.distance(pt, this.localToImage(this.lastMouse)) <
       this.pointSize / 2
@@ -677,6 +677,7 @@ class PolygonTool extends React.Component {
     this.ctx.beginPath();
     this.ctx.moveTo(pt1.x, pt1.y);
     this.ctx.lineTo(pt2.x, pt2.y);
+    this.ctx.strokeStyle = this.props.originType === "detector" ? "white" : "black";
     this.ctx.stroke();
   }
 

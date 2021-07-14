@@ -29,6 +29,7 @@ const COLORS = [
 class LiveObjects extends React.Component {
   constructor(props) {
     super(props);
+    this.addObject = this.addObject.bind(this);
     this.onResize = this.onResize.bind(this);
     this.onFixup = this.onFixup.bind(this);
     this.initialState = {
@@ -38,6 +39,13 @@ class LiveObjects extends React.Component {
       objects: null,
     };
     this.state = this.initialState;
+  }
+
+  addObject(object) {
+    let newObjects = this.state.objects ? this.state.objects.concat(object) : [object]
+    this.setState({
+      objects: newObjects
+    })
   }
 
   onResize(e, direction, ref, delta, position) {
@@ -71,6 +79,7 @@ class LiveObjects extends React.Component {
             : [],
           label: obj.label,
           properties: obj.properties.split("\n "),
+          type: obj.type,
         }));
         fixer.setState({
           image: this.state.rgb,
@@ -177,7 +186,7 @@ class LiveObjects extends React.Component {
               }}
               fill={color}
               opacity={0.5}
-              stroke="black"
+              stroke={obj.type === "detector" ? "white" : "black"}
               strokeWidth={1}
             />
           );

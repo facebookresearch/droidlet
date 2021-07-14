@@ -82,6 +82,10 @@ class StateManager {
 
     this.returnTimelineEvent = this.returnTimelineEvent.bind(this);
 
+    this.onObjectAnnotationSave = this.onObjectAnnotationSave.bind(this);
+    this.startLabelPropagation = this.startLabelPropagation.bind(this);
+    this.labelPropagationReturn = this.labelPropagationReturn.bind(this);
+
     // set turk related params
     const urlParams = new URLSearchParams(window.location.search);
     const turkExperimentId = urlParams.get("turk_experiment_id");
@@ -105,19 +109,24 @@ class StateManager {
 
     // Assumes that all socket events for a frame are received before the next frame
     this.curFeedState = {
-      rgbImg: null,
-      depth: null,
-      masks: null,
+      rgbImg: null, 
+      depth: null, 
+      objects: null, // Can be changed by annotation tool
+      origObjects: null, // Original objects sent from backend
       pose: null,
-      objects: null,
-    };
+    }
     this.prevFeedState = {
-      rgbImg: null,
-      depth: null,
-      masks: null,
-      pose: null,
+      rgbImg: null, 
+      depth: null, 
       objects: null,
-    };
+      pose: null,
+    }
+    this.stateProcessed = {
+      rgbImg: false, 
+      depth: false, 
+      objects: false,
+      pose: false,
+    }
   }
 
   setDefaultUrl() {
@@ -128,6 +137,9 @@ class StateManager {
   setUrl(url) {
     this.url = url;
     localStorage.setItem("server_url", url);
+    if (this.socket) {
+      this.socket.removeAllListeners();
+    }
     this.restart(this.url);
   }
 
@@ -218,6 +230,7 @@ class StateManager {
     socket.on("humans", this.processHumans);
     socket.on("map", this.processMap);
     socket.on("newTimelineEvent", this.returnTimelineEvent);
+    socket.on("labelPropagationReturn", this.labelPropagationReturn);
   }
 
   updateStateManagerMemory(data) {
@@ -380,6 +393,117 @@ class StateManager {
     interactionData[key] = value;
     this.socket.emit("interaction data", interactionData);
   }
+  
+  onObjectAnnotationSave(res) {
+    let { nameMap, pointMap, propertyMap } = res;
+    let newObjects = []
+    let scale = 500  // hardcoded from somewhere else
+    for (let id in nameMap) {
+      let oldObj = id < this.curFeedState.objects.length;
+      let newId = oldObj ? this.curFeedState.objects[id].id : null;
+      let newXyz = oldObj ? this.curFeedState.objects[id].xyz : null;
+      // Get rid of masks with <3 points
+      let i = 0
+      while (i < pointMap[id].length) {
+        if (!pointMap[id][i] || pointMap[id][i].length < 3) {
+          pointMap[id].splice(i, 1);
+          continue
+        }
+        i++
+      }
+      let newMask = pointMap[id].map(mask => mask.map((pt, i) => [pt.x * scale, pt.y * scale]))
+      let newBbox = this.getNewBbox(newMask);
+
+      newObjects.push({
+        label: nameMap[id], 
+        mask: newMask, 
+        properties: propertyMap[id].join("\n "),
+        type: "annotate", // either "annotate" or "detector"
+        id: newId, 
+        bbox: newBbox, 
+        xyz: newXyz, 
+      })
+    }
+    this.curFeedState.objects = newObjects
+
+    this.refs.forEach((ref) => {
+      if (ref instanceof LiveObjects) {
+        ref.setState({
+          objects: this.curFeedState.objects,
+        });
+      }
+    })
+  }
+
+  getNewBbox(maskSet) {
+    let xs = [], ys = []
+    for (let i = 0; i < maskSet.length; i++) {
+      for (let j = 0; j < maskSet[i].length; j++) {
+        xs.push(maskSet[i][j][0])
+        ys.push(maskSet[i][j][1])
+      }
+    }
+    let minX = Math.min.apply(null, xs), 
+        maxX = Math.max.apply(null, xs), 
+        minY = Math.min.apply(null, ys), 
+        maxY = Math.max.apply(null, ys)
+    return [minX, minY, maxX, maxY]
+  }
+
+  startLabelPropagation() {
+    let props = {
+      prevRgbImg: this.prevFeedState.rgbImg, 
+      depth: this.curFeedState.depth, 
+      prevDepth: this.prevFeedState.depth, 
+      prevObjects: this.prevFeedState.objects.filter(o => o.type === "annotate"), 
+      basePose: this.curFeedState.pose,
+      prevBasePose: this.prevFeedState.pose,
+    }
+    this.socket.emit("label_propagation", props)
+    // Reset
+    this.stateProcessed.rgbImg = true;
+    this.stateProcessed.depth = true;
+    this.stateProcessed.objects = true;
+    this.stateProcessed.pose = true;
+  }
+
+  labelPropagationReturn(res) {
+    this.refs.forEach((ref) => {
+      if (ref instanceof LiveObjects) {
+        for (let i = 0; i < res.length; i++) {
+          // Get rid of masks with <3 points
+          let j = 0
+          while (j < res[i].mask.length) {
+            if (!res[i].mask[j] || res[i].mask[j].length < 3) {
+              res[i].mask.splice(j, 1);
+              continue
+            }
+            j++
+          }
+          res[i].bbox = this.getNewBbox(res[i].mask)
+          ref.addObject(res[i])
+          this.curFeedState.objects.push(res[i])
+        }
+      }
+    })
+  }
+
+  checkRunLabelProp() {
+    return (
+      this.curFeedState.rgbImg && 
+      this.curFeedState.depth && 
+      this.curFeedState.objects && 
+      this.curFeedState.pose && 
+      this.prevFeedState.rgbImg && 
+      this.prevFeedState.depth && 
+      this.prevFeedState.objects && 
+      this.prevFeedState.pose && 
+      !this.stateProcessed.rgbImg && 
+      !this.stateProcessed.depth && 
+      !this.stateProcessed.objects && 
+      !this.stateProcessed.pose  
+    )
+  }
 
   processMemoryState(msg) {
     this.refs.forEach((ref) => {
@@ -390,40 +514,56 @@ class StateManager {
   }
 
   processRGB(res) {
-    let rgb = new Image();
-    rgb.src = "data:image/webp;base64," + res;
-    this.refs.forEach((ref) => {
-      if (ref instanceof LiveImage) {
-        if (ref.props.type === "rgb") {
-          ref.setState({
-            isLoaded: true,
-            rgb: rgb,
-          });
+    if (this.curFeedState.rgbImg !== res) {
+      // Update feed
+      let rgb = new Image();
+      rgb.src = "data:image/webp;base64," + res;
+      this.refs.forEach((ref) => {
+        if (ref instanceof LiveImage) {
+          if (ref.props.type === "rgb") {
+            ref.setState({
+              isLoaded: true,
+              rgb: rgb,
+            });
+          }
         }
-      }
-    });
-    if (this.curFeedState.rgbImg != res) {
-      this.prevFeedState.rgbImg = this.curFeedState.rgbImg;
-      this.curFeedState.rgbImg = res;
+      });
+      // Update state
+      this.prevFeedState.rgbImg = this.curFeedState.rgbImg
+      this.curFeedState.rgbImg = res
+      this.stateProcessed.rgbImg = false
+    }
+    if (this.checkRunLabelProp()) {
+      this.startLabelPropagation()
     }
   }
 
   processDepth(res) {
-    let depth = new Image();
-    depth.src = "data:image/webp;base64," + res;
-    this.refs.forEach((ref) => {
-      if (ref instanceof LiveImage) {
-        if (ref.props.type === "depth") {
-          ref.setState({
-            isLoaded: true,
-            depth: depth,
-          });
+    if (this.curFeedState.depth !== res) {
+      // Update feed
+      let depth = new Image();
+      depth.src = "data:image/webp;base64," + res.depthImg;
+      this.refs.forEach((ref) => {
+        if (ref instanceof LiveImage) {
+          if (ref.props.type === "depth") {
+            ref.setState({
+              isLoaded: true,
+              depth: depth,
+            });
+          }
         }
+      });
+      // Update state
+      this.prevFeedState.depth = this.curFeedState.depth
+      this.curFeedState.depth = {
+        depthImg: res.depthImg,
+        depthMax: res.depthMax,
+        depthMin: res.depthMin
       }
-    });
-    if (this.curFeedState.depth != res) {
-      this.prevFeedState.depth = this.curFeedState.depth;
-      this.curFeedState.depth = res;
+      this.stateProcessed.depth = false
+    }
+    if (this.checkRunLabelProp()) {
+      this.startLabelPropagation()
     }
   }
 
@@ -439,25 +579,33 @@ class StateManager {
     let rgb = new Image();
     rgb.src = "data:image/webp;base64," + res.image.rgb;
 
-    this.refs.forEach((ref) => {
-      this.curFeedState.objects = res.objects;
-      if (ref instanceof LiveObjects) {
-        ref.setState({
-          isLoaded: true,
-          objects: res.objects,
-          rgb: rgb,
-        });
-      } else if (ref instanceof MobileMainPane) {
-        // mobile main pane needs to know object_rgb so it can be passed into annotation image when pane switches to annotation
-        ref.setState({
-          objectRGB: rgb,
-        });
-      }
-    });
-    let masks = res.objects.map((o) => o.mask);
-    if (JSON.stringify(this.curFeedState.masks) != JSON.stringify(masks)) {
-      this.prevFeedState.masks = this.curFeedState.masks;
-      this.curFeedState.masks = masks;
+    res.objects.forEach(o => {
+      o["type"] = "detector"
+    })
+
+    // If new objects, update state and feed
+    if (JSON.stringify(this.curFeedState.origObjects) !== JSON.stringify(res.objects)) {
+      this.prevFeedState.objects = this.curFeedState.objects
+      this.curFeedState.objects = JSON.parse(JSON.stringify(res.objects)) // deep clone
+      this.curFeedState.origObjects = JSON.parse(JSON.stringify(res.objects)) // deep clone
+      this.stateProcessed.objects = false
+
+      this.refs.forEach((ref) => {
+        if (ref instanceof LiveObjects) {
+          ref.setState({
+            objects: res.objects,
+            rgb: rgb,
+          })
+        } else if (ref instanceof MobileMainPane) {
+          // mobile main pane needs to know object_rgb so it can be passed into annotation image when pane switches to annotation
+          ref.setState({
+            objectRGB: rgb,
+          });
+        }
+      });
+    }
+    if (this.checkRunLabelProp()) {
+      this.startLabelPropagation()
     }
   }
 
@@ -491,19 +639,20 @@ class StateManager {
       }
     });
 
-    if (
-      !this.curFeedState.pose ||
-      (res &&
-        (res.x !== this.curFeedState.pose.x ||
-          res.y !== this.curFeedState.pose.y ||
-          res.yaw !== this.curFeedState.pose.yaw))
-    ) {
-      this.prevFeedState.pose = this.curFeedState.pose;
+    if (!this.curFeedState.pose || (res &&  
+      (res.x !== this.curFeedState.pose.x || 
+      res.y !== this.curFeedState.pose.y || 
+      res.yaw !== this.curFeedState.pose.yaw))) {
+      this.prevFeedState.pose = this.curFeedState.pose
       this.curFeedState.pose = {
-        x: res.x,
-        y: res.y,
-        yaw: res.yaw,
-      };
+        x: res.x, 
+        y: res.y, 
+        yaw: res.yaw, 
+      }
+      this.stateProcessed.pose = false
+    }
+    if (this.checkRunLabelProp()) {
+      this.startLabelPropagation()
     }
   }
 
