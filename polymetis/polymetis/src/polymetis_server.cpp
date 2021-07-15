@@ -141,15 +141,11 @@ PolymetisControllerServerImpl::ControlUpdate(ServerContext *context,
                                              TorqueCommand *torque_command) {
   // Check if last update is stale
   if (!validRobotContext()) {
-    std::cerr << "Interrupted control update greater than threshold of "
-              << threshold_ns_ << " ns.\n";
-    return Status::CANCELLED;
-  }
-
-  // First step of episode: update episode marker
-  if (custom_controller_context_.status == READY) {
-    custom_controller_context_.episode_begin = robot_state_buffer_.size();
-    custom_controller_context_.status = RUNNING;
+    std::cout
+        << "Warning: Interrupted control update greater than threshold of "
+        << threshold_ns_ << " ns. Reverting to default controller..."
+        << std::endl;
+    custom_controller_context_.status = TERMINATING;
   }
 
   // Parse robot state
@@ -163,6 +159,29 @@ PolymetisControllerServerImpl::ControlUpdate(ServerContext *context,
     rs_motor_torques_external_[i] = robot_state->motor_torques_external(i);
   }
 
+  // Lock to prevent 1) controller updates while controller is running; 2)
+  // external termination during controller selection, which might cause loading
+  // of a uninitialized default controller
+  custom_controller_context_.controller_mtx.lock();
+
+  // Update episode markers
+  if (custom_controller_context_.status == READY) {
+    // First step of episode: update episode marker
+    custom_controller_context_.episode_begin = robot_state_buffer_.size();
+    custom_controller_context_.status = RUNNING;
+
+  } else if (custom_controller_context_.status == TERMINATING) {
+    // Last step of episode: update episode marker & reset default controller
+    custom_controller_context_.episode_end = robot_state_buffer_.size() - 1;
+    custom_controller_context_.status = TERMINATED;
+
+    robot_client_context_.default_controller.get_method("reset")(empty_input_);
+
+    std::cout
+        << "Terminating custom controller, switching to default controller."
+        << std::endl;
+  }
+
   // Select controller
   torch::jit::script::Module *controller;
   if (custom_controller_context_.status == RUNNING) {
@@ -172,9 +191,10 @@ PolymetisControllerServerImpl::ControlUpdate(ServerContext *context,
   }
 
   // Step controller & generate torque command response
-  custom_controller_context_.controller_mtx.lock();
   c10::Dict<torch::jit::IValue, torch::jit::IValue> controller_state_dict =
       controller->forward(input_).toGenericDict();
+
+  // Unlock
   custom_controller_context_.controller_mtx.unlock();
 
   torch::jit::IValue key = torch::jit::IValue("joint_torques");
@@ -199,16 +219,6 @@ PolymetisControllerServerImpl::ControlUpdate(ServerContext *context,
     if (controller->get_method("is_terminated")(empty_input_).toBool()) {
       custom_controller_context_.status = TERMINATING;
     }
-  }
-
-  // Last step of episode: update episode marker & reset default controller
-  if (custom_controller_context_.status == TERMINATING) {
-    robot_client_context_.default_controller.get_method("reset")(empty_input_);
-    custom_controller_context_.episode_end = robot_state_buffer_.size() - 1;
-    custom_controller_context_.status = TERMINATED;
-    std::cout
-        << "Terminating custom controller, switching to default controller."
-        << std::endl;
   }
 
   robot_client_context_.last_update_ns = getNanoseconds();
@@ -314,7 +324,9 @@ Status PolymetisControllerServerImpl::TerminateController(
   std::lock_guard<std::mutex> service_lock(service_mtx_);
 
   if (custom_controller_context_.status != UNINITIALIZED) {
+    custom_controller_context_.controller_mtx.lock();
     custom_controller_context_.status = TERMINATING;
+    custom_controller_context_.controller_mtx.unlock();
 
     // Respond with start & end index
     while (custom_controller_context_.status == TERMINATING) {

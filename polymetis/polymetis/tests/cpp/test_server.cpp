@@ -124,7 +124,7 @@ TEST_F(ServiceTest, SetController) {
                                       dummy_robot_state_, new TorqueCommand)
                       .ok());
 
-      if (i == 1) {
+      if (i == 2) {
         terminate_mtx.unlock();
         usleep(100000);
       }
